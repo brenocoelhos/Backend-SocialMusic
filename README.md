@@ -21,6 +21,10 @@ git clone [url-do-repositorio] socialmusic_backend
 
 3. Estrutura do banco de dados:
 ```sql
+CREATE DATABASE sistema_auth
+
+USE sistema_auth
+
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(255),
