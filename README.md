@@ -23,7 +23,7 @@ git clone [url-do-repositorio] socialmusic_backend
 ```sql
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
+    nome VARCHAR(255),
     email VARCHAR(255) NOT NULL UNIQUE,
     senha_hash VARCHAR(255) NOT NULL,
     perfil ENUM('user', 'admin') DEFAULT 'user',
