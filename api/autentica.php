@@ -1,13 +1,14 @@
 <?php
-/**
- * API de Autenticação
- * Endpoint: POST /api/autentica.php
- */
+//API de Autenticação
 
+$origin = 'http://localhost:3000'; 
+
+header("Access-Control-Allow-Origin: " . $origin); 
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+
 
 // Responde OPTIONS para CORS preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -28,9 +29,13 @@ require_once __DIR__ . '/../config/database.php';
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.cookie_samesite', 'Lax'); // Mudando para Lax para teste
     session_start();
 }
+
+// Debug - Log do início da sessão
+error_log('Nova sessão iniciada em autentica.php');
+error_log('SESSION ID: ' . session_id());
 
 /**
  * Registra tentativa de login
@@ -107,7 +112,7 @@ try {
     
     // Busca usuário
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("SELECT id, email, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
+    $stmt = $db->prepare("SELECT id, email, usuario, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
     $stmt->execute([$email]);
     $usuario = $stmt->fetch();
     
@@ -147,7 +152,8 @@ try {
     
     // Cria sessão
     $_SESSION['usuario_id'] = $usuario['id'];
-    $_SESSION['usuario'] = $usuario['email'];
+    $_SESSION['email'] = $usuario['email'];
+    $_SESSION['usuario'] = $usuario['usuario'];
     $_SESSION['nome'] = $usuario['nome'];
     $_SESSION['perfil'] = $usuario['perfil'];
     $_SESSION['ultima_atividade'] = time();
@@ -157,16 +163,23 @@ try {
     registraTentativaLogin($email, true);
     
     // Resposta de sucesso
-    echo json_encode([
+    $resposta = [
         'sucesso' => true,
         'mensagem' => 'Login realizado com sucesso',
         'usuario' => [
             'id' => $usuario['id'],
             'email' => $usuario['email'],
+            'usuario' => $usuario['usuario'],
             'nome' => $usuario['nome'],
             'perfil' => $usuario['perfil']
+        ],
+        'debug' => [
+            'session_id' => session_id(),
+            'session_data' => $_SESSION,
+            'usuario_db' => $usuario
         ]
-    ]);
+    ];
+    echo json_encode($resposta);
     
 } catch (Exception $e) {
     http_response_code(500);

@@ -40,7 +40,6 @@ try {
     $nome = trim($dados['nome'] ?? '');
     $email = filter_var($dados['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $senha = $dados['senha'] ?? '';
-    // <<< CORREÇÃO 1: Ler o campo 'usuario' que o Vue está enviando
     $usuario = trim($dados['usuario'] ?? '');
 
     if (empty($nome)) {
@@ -60,7 +59,6 @@ try {
     // Inicializa a variável de perfil
     $perfil = 'user';
     if (strpos($email, '@socialmusic.br') !== false) {
-        // <<< CORREÇÃO 2: Corrigir o valor de 'adm' para 'admin'
         $perfil = 'admin';
     }
 
@@ -76,7 +74,7 @@ try {
         throw new Exception('Este e-mail ou nome de usuário já está cadastrado.');
     }
 
-    // 5. Criptografa a senha (ESSENCIAL PARA SEGURANÇA)
+    // 5. Criptografa a senha
     $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 
     // 6. Insere o novo usuário no banco de dados
