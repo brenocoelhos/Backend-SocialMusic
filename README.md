@@ -84,7 +84,7 @@ Endpoint para autenticação de usuários.
 
 ## ⚙️ Configuração do XAMPP
 
-1. Inicie o Apache e MySQL no painel de controle do XAMPP
+1. Inicie o Apache e MySQL no painel de controle do XAMPP 
 2. A API estará disponível em: `http://localhost/socialmusic_backend/api/`
 
 ## 🛡️ Segurança
