@@ -112,7 +112,7 @@ try {
     
     // Busca usuário
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("SELECT id, email, usuario, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
+    $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
     $stmt->execute([$email]);
     $usuario = $stmt->fetch();
     
@@ -153,7 +153,7 @@ try {
     // Cria sessão
     $_SESSION['usuario_id'] = $usuario['id'];
     $_SESSION['email'] = $usuario['email'];
-    $_SESSION['usuario'] = $usuario['usuario'];
+    $_SESSION['username'] = $usuario['username'];
     $_SESSION['nome'] = $usuario['nome'];
     $_SESSION['perfil'] = $usuario['perfil'];
     $_SESSION['ultima_atividade'] = time();
@@ -169,7 +169,7 @@ try {
         'usuario' => [
             'id' => $usuario['id'],
             'email' => $usuario['email'],
-            'usuario' => $usuario['usuario'],
+            'username' => $usuario['username'],
             'nome' => $usuario['nome'],
             'perfil' => $usuario['perfil']
         ],

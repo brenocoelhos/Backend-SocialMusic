@@ -40,7 +40,7 @@ try {
     $nome = trim($dados['nome'] ?? '');
     $email = filter_var($dados['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $senha = $dados['senha'] ?? '';
-    $usuario = trim($dados['usuario'] ?? '');
+    $username = trim($dados['username'] ?? '');
 
     if (empty($nome)) {
         throw new Exception('O nome é obrigatório.');
@@ -52,22 +52,24 @@ try {
         throw new Exception('A senha é obrigatória e deve ter no mínimo 6 caracteres.');
     }
     // Adiciona validação para o nome de usuário também
-    if (empty($usuario)) {
+    if (empty($username)) {
         throw new Exception('O nome de usuário não pôde ser gerado.');
     }
 
     // Inicializa a variável de perfil
-    $perfil = 'user';
-    if (strpos($email, '@socialmusic.br') !== false) {
+    if (strpos($email, '@socialmusic.br') == true) {
         $perfil = 'admin';
+    }
+    else{
+        $perfil = 'user';
     }
 
     // 3. Conecta ao banco de dados
     $db = Database::getInstance()->getConnection();
 
     // 4. Verifica se o e-mail OU o usuário já estão em uso
-    $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ? OR usuario = ?");
-    $stmt->execute([$email, $usuario]);
+    $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ? OR username = ?");
+    $stmt->execute([$email, $username]);
     
     if ($stmt->fetch()) {
         http_response_code(409); // Conflict
@@ -78,8 +80,8 @@ try {
     $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 
     // 6. Insere o novo usuário no banco de dados
-    $stmt = $db->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, usuario) VALUES (?, ?, ?, ?, ?)");
-    $sucesso_insert = $stmt->execute([$nome, $email, $senha_hash, $perfil, $usuario]);
+    $stmt = $db->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, username) VALUES (?, ?, ?, ?, ?)");
+    $sucesso_insert = $stmt->execute([$nome, $email, $senha_hash, $perfil, $username]);
 
     if (!$sucesso_insert) {
         throw new Exception('Ocorreu um erro ao tentar criar a conta. Tente novamente.');
