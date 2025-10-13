@@ -43,10 +43,6 @@ try {
     
     // Aceita 'username', 'usuario' ou 'user' (compatibilidade com frontend)
     $username = trim($dados['username'] ?? $dados['usuario'] ?? $dados['user'] ?? '');
-    
-    // Log para debug (remover em produção)
-    error_log("Dados recebidos: " . json_encode($dados));
-    error_log("Username processado: '" . $username . "'");
 
     if (empty($nome)) {
         throw new Exception('O nome é obrigatório.');
@@ -59,8 +55,7 @@ try {
     }
     // Adiciona validação para o nome de usuário também
     if (empty($username)) {
-        $camposRecebidos = implode(', ', array_keys($dados));
-        throw new Exception("O nome de usuário é obrigatório. Campos recebidos: $camposRecebidos");
+        throw new Exception('O nome de usuário é obrigatório.');
     }
 
     // Inicializa a variável de perfil
@@ -87,8 +82,8 @@ try {
     $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 
     // 6. Insere o novo usuário no banco de dados
-    $stmt = $db->prepare("INSERT INTO usuarios (email, senha_hash, username, perfil, nome) VALUES (?, ?, ?, ?, ?)");
-    $sucesso_insert = $stmt->execute([$email, $senha_hash, $username, $perfil, $nome]);
+    $stmt = $db->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, username) VALUES (?, ?, ?, ?, ?)");
+    $sucesso_insert = $stmt->execute([$nome, $email, $senha_hash, $perfil, $username]);
 
     if (!$sucesso_insert) {
         throw new Exception('Ocorreu um erro ao tentar criar a conta. Tente novamente.');
