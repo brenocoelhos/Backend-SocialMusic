@@ -1,0 +1,12 @@
+# Ignore environment files
+.env
+
+# Composer / PHP
+vendor/
+
+# Node
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

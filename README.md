@@ -21,13 +21,17 @@ git clone [url-do-repositorio] socialmusic_backend
 
 3. Estrutura do banco de dados:
 ```sql
+CREATE DATABASE sistema_auth;
+
+USE sistema_auth;
+
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
+    nome VARCHAR(255),
     email VARCHAR(255) NOT NULL UNIQUE,
     senha_hash VARCHAR(255) NOT NULL,
     perfil ENUM('user', 'admin') DEFAULT 'user',
-    usuario VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -80,7 +84,7 @@ Endpoint para autenticação de usuários.
 
 ## ⚙️ Configuração do XAMPP
 
-1. Inicie o Apache e MySQL no painel de controle do XAMPP
+1. Inicie o Apache e MySQL no painel de controle do XAMPP 
 2. A API estará disponível em: `http://localhost/socialmusic_backend/api/`
 
 ## 🛡️ Segurança

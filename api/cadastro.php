@@ -40,8 +40,13 @@ try {
     $nome = trim($dados['nome'] ?? '');
     $email = filter_var($dados['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $senha = $dados['senha'] ?? '';
-    // <<< CORREÇÃO 1: Ler o campo 'usuario' que o Vue está enviando
-    $usuario = trim($dados['usuario'] ?? '');
+    
+    // Aceita 'username', 'usuario' ou 'user' (compatibilidade com frontend)
+    $username = trim($dados['username'] ?? $dados['usuario'] ?? $dados['user'] ?? '');
+    
+    // Log para debug (remover em produção)
+    error_log("Dados recebidos: " . json_encode($dados));
+    error_log("Username processado: '" . $username . "'");
 
     if (empty($nome)) {
         throw new Exception('O nome é obrigatório.');
@@ -53,35 +58,37 @@ try {
         throw new Exception('A senha é obrigatória e deve ter no mínimo 6 caracteres.');
     }
     // Adiciona validação para o nome de usuário também
-    if (empty($usuario)) {
-        throw new Exception('O nome de usuário não pôde ser gerado.');
+    if (empty($username)) {
+        $camposRecebidos = implode(', ', array_keys($dados));
+        throw new Exception("O nome de usuário é obrigatório. Campos recebidos: $camposRecebidos");
     }
 
     // Inicializa a variável de perfil
-    $perfil = 'user';
-    if (strpos($email, '@socialmusic.br') !== false) {
-        // <<< CORREÇÃO 2: Corrigir o valor de 'adm' para 'admin'
+    if (strpos($email, '@socialmusic.br') == true) {
         $perfil = 'admin';
+    }
+    else{
+        $perfil = 'user';
     }
 
     // 3. Conecta ao banco de dados
     $db = Database::getInstance()->getConnection();
 
     // 4. Verifica se o e-mail OU o usuário já estão em uso
-    $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ? OR usuario = ?");
-    $stmt->execute([$email, $usuario]);
+    $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ? OR username = ?");
+    $stmt->execute([$email, $username]);
     
     if ($stmt->fetch()) {
         http_response_code(409); // Conflict
         throw new Exception('Este e-mail ou nome de usuário já está cadastrado.');
     }
 
-    // 5. Criptografa a senha (ESSENCIAL PARA SEGURANÇA)
+    // 5. Criptografa a senha
     $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 
     // 6. Insere o novo usuário no banco de dados
-    $stmt = $db->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, usuario) VALUES (?, ?, ?, ?, ?)");
-    $sucesso_insert = $stmt->execute([$nome, $email, $senha_hash, $perfil, $usuario]);
+    $stmt = $db->prepare("INSERT INTO usuarios (email, senha_hash, username, perfil, nome) VALUES (?, ?, ?, ?, ?)");
+    $sucesso_insert = $stmt->execute([$email, $senha_hash, $username, $perfil, $nome]);
 
     if (!$sucesso_insert) {
         throw new Exception('Ocorreu um erro ao tentar criar a conta. Tente novamente.');
