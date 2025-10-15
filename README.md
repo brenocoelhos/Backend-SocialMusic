@@ -1,23 +1,55 @@
-# Social Music Backend
+# 🎵 Social Music Backend
 
-Backend da aplicação Social Music, desenvolvida em PHP.
+Backend completo da aplicação Social Music, desenvolvida em PHP com integração a APIs de música.
 
-## 📋 Requisitos
+## ✨ Funcionalidades
+
+- � **Sistema completo de autenticação** (cadastro, login, logout)
+- 🎵 **API de músicas populares** (Last.fm Global Charts + iTunes)
+- 🔍 **API de busca de músicas** (Spotify API)
+- 📊 **Dados em tempo real** com imagens de alta qualidade
+- 🔒 **Configuração segura** com arquivos .env
+- 🌐 **CORS configurado** para frontend Vue.js
+
+## �📋 Requisitos
 
 - PHP 7.4 ou superior
-- MySQL/MariaDB
+- MySQL/MariaDB 
 - XAMPP (ou servidor Apache configurado)
+- Extensão cURL do PHP habilitada
 
-## 🔧 Configuração
+## 🔧 Configuração Rápida
 
-1. Clone o repositório na pasta `htdocs` do XAMPP:
+### 1. Clone e Configure
 ```bash
+# Clone na pasta htdocs do XAMPP
 git clone [url-do-repositorio] socialmusic_backend
+cd socialmusic_backend
 ```
 
-2. Configure o banco de dados:
-   - Crie um banco de dados MySQL
-   - Configure as credenciais no arquivo `config/database.php`
+### 2. Configure o Arquivo .env
+```bash
+# Copie o exemplo
+cp .env.example .env
+
+# Edite o .env com suas credenciais
+```
+
+**Exemplo de .env:**
+```env
+# APIs de Música
+LASTFM_API_KEY=sua_chave_lastfm
+SPOTIFY_CLIENT_ID=seu_client_id_spotify
+SPOTIFY_CLIENT_SECRET=seu_client_secret_spotify
+
+# Banco de Dados
+DB_HOST=localhost
+DB_NAME=sistema_auth
+DB_USER=root
+DB_PASS=
+```
+
+### 3. Configure o Banco de Dados
 
 3. Estrutura do banco de dados:
 ```sql
@@ -40,34 +72,58 @@ CREATE TABLE usuarios (
 
 ```
 socialmusic_backend/
-├── api/
-│   ├── autentica.php      # Autenticação de usuários
-│   ├── cadastro.php       # Cadastro de novos usuários
-│   ├── logout.php         # Logout de usuários
-│   ├── sem_permissao.php  # Página de acesso negado
-│   └── verifica_sessao.php # Verificação de sessão
-├── config/
-│   └── database.php       # Configurações do banco de dados
-└── README.md
+├── 📁 api/                           # Endpoints da API
+│   ├── autentica.php                 # Autenticação de usuários
+│   ├── auth.admin.php                # Autenticação admin
+│   ├── cadastro.php                  # Cadastro de novos usuários
+│   ├── buscar_musicas.php           # 🔍 Busca de músicas (Spotify)
+│   ├── spotify_musicas.php          # 🎵 Músicas populares (Last.fm + iTunes)
+│   ├── logout.php                   # Logout de usuários
+│   ├── sem_permissao.php           # Página de acesso negado
+│   └── verifica_sessao.php         # Verificação de sessão
+├── 📁 classes/                       # Classes principais
+│   ├── LastFmAPI.php                # 🎵 Last.fm + iTunes integration
+│   └── SpotifyAPI.php               # Spotify API wrapper
+├── 📁 config/                        # Configurações
+│   ├── database.php                 # Config do banco
+│   ├── lastfm.php                   # Config Last.fm
+│   └── spotify.php                  # Config Spotify  
+├── 📁 database/                      # Scripts de banco
+│   ├── migrate_table.php            # Migração de tabelas
+│   ├── schema.sql                   # Schema do banco
+│   └── setup.php                    # Setup inicial
+├── 📄 .env                          # Variáveis de ambiente
+├── 📄 .env.example                  # Exemplo de .env
+└── 📄 README.md                     # Este arquivo
 ```
 
-## 🔒 Endpoints da API
+## � Endpoints da API
 
-### POST /api/cadastro.php
-Endpoint para cadastro de novos usuários.
+### 👤 Autenticação
+
+#### POST /api/cadastro.php
+Cadastro de novos usuários com validação completa.
 
 **Payload:**
 ```json
 {
     "nome": "Nome do Usuário",
-    "email": "usuario@exemplo.com",
+    "email": "usuario@exemplo.com", 
     "senha": "senha123",
-    "usuario": "nome_usuario"
+    "username": "nome_usuario"
 }
 ```
 
-### POST /api/autentica.php
-Endpoint para autenticação de usuários.
+**Resposta de Sucesso:**
+```json
+{
+    "sucesso": true,
+    "mensagem": "Conta criada com sucesso! Você já pode fazer o login."
+}
+```
+
+#### POST /api/autentica.php
+Autenticação de usuários registrados.
 
 **Payload:**
 ```json
@@ -77,19 +133,173 @@ Endpoint para autenticação de usuários.
 }
 ```
 
+### 🎵 APIs de Música
+
+#### GET /api/spotify_musicas.php
+Busca músicas populares globais com dados do Last.fm e imagens do iTunes.
+
+**Parâmetros:**
+- `tipo=populares` (padrão)
+- `limit=6` (opcional, 1-50)
+
+**Exemplo:** `GET /api/spotify_musicas.php?tipo=populares&limit=10`
+
+**Resposta:**
+```json
+{
+    "sucesso": true,
+    "tipo": "populares", 
+    "fonte": "Last.fm",
+    "musicas": [
+        {
+            "titulo": "Anti-Hero",
+            "artista": "Taylor Swift",
+            "rank": 1,
+            "popularidade": 2500000,
+            "capa": "https://is1-ssl.mzstatic.com/image/thumb/Music/.../600x600bb.jpg"
+        }
+    ]
+}
+```
+
+#### GET /api/buscar_musicas.php
+Busca personalizada de músicas usando Spotify API.
+
+**Parâmetros:**
+- `q` (obrigatório): termo de busca
+- `limit` (opcional): resultados (1-50, padrão: 20)
+
+**Exemplo:** `GET /api/buscar_musicas.php?q=ed+sheeran&limit=5`
+
+**Resposta:**
+```json
+{
+    "sucesso": true,
+    "termo_busca": "ed sheeran",
+    "total_resultados": 5,
+    "musicas": [
+        {
+            "titulo": "Shape of You",
+            "artista": "Ed Sheeran",
+            "album": "÷ (Deluxe)",
+            "capa": "https://i.scdn.co/.../640x640bb.jpg",
+            "duracao": "3:53",
+            "popularidade": 84,
+            "preview_url": "https://p.scdn.co/.../preview.mp3",
+            "spotify_url": "https://open.spotify.com/track/...",
+            "lancamento": "2017-03-03"
+        }
+    ]
+}
+```
+
+## 🎯 Integrações de APIs
+
+### Last.fm API
+- **Dados**: Top tracks globais em tempo real
+- **Funcionalidade**: Ranking mundial de músicas mais ouvidas
+- **Atualização**: Dados sempre atuais
+
+### iTunes/Apple Music API
+- **Imagens**: Capas de álbuns em alta qualidade (600x600)
+- **Vantagem**: Gratuita, sem limites, imagens oficiais
+- **Fallback**: Last.fm como backup para imagens
+
+### Spotify API  
+- **Busca**: Catálogo completo de músicas
+- **Dados extras**: Duração, popularidade, preview de 30s
+- **Mercado**: Configurado para Brasil (BR)
+
 ## 🔐 Níveis de Acesso
 
-- **user**: Usuário padrão
+- **user**: Usuário padrão do sistema
 - **admin**: Administrador (emails com domínio @socialmusic.br)
 
-## ⚙️ Configuração do XAMPP
+## ⚙️ Como Executar
 
-1. Inicie o Apache e MySQL no painel de controle do XAMPP 
-2. A API estará disponível em: `http://localhost/socialmusic_backend/api/`
+### 1. Inicie o XAMPP
+```bash
+# Inicie Apache e MySQL no painel de controle
+```
+
+### 2. Acesse as APIs
+```bash
+# Base URL
+http://localhost/socialmusic_backend/api/
+
+# Exemplos de teste
+http://localhost/socialmusic_backend/api/spotify_musicas.php?tipo=populares
+http://localhost/socialmusic_backend/api/buscar_musicas.php?q=taylor+swift&limit=5
+```
+
+### 3. Teste no Frontend
+```javascript
+// Exemplo Vue.js/JavaScript
+const response = await fetch('http://localhost/socialmusic_backend/api/spotify_musicas.php?tipo=populares&limit=6');
+const data = await response.json();
+
+if (data.sucesso) {
+    data.musicas.forEach(musica => {
+        console.log(`${musica.titulo} - ${musica.artista}`);
+    });
+}
+```
+
+## � Configuração de Ambiente
+
+### Obter API Keys
+
+#### Last.fm
+1. Acesse: https://www.last.fm/api/account/create
+2. Crie uma aplicação
+3. Copie a **API Key** para o `.env`
+
+#### Spotify
+1. Acesse: https://developer.spotify.com/dashboard
+2. Crie uma aplicação
+3. Copie **Client ID** e **Client Secret** para o `.env`
+
+### Exemplo Completo .env
+```env
+# APIs de Música
+LASTFM_API_KEY=5568698d9b6f861a200fca088965d462
+SPOTIFY_CLIENT_ID=f4ad70f409ae4632a64aa40fc8113c60
+SPOTIFY_CLIENT_SECRET=4270e4e066474850b811eb85fd285a17
+
+# Banco de Dados  
+DB_HOST=localhost
+DB_NAME=sistema_auth
+DB_USER=root
+DB_PASS=
+
+# App Config (opcional)
+APP_ENV=development
+DEBUG=true
+```
 
 ## 🛡️ Segurança
 
-- Senhas são armazenadas com hash usando `password_hash()`
-- Validação de dados de entrada
-- Proteção contra SQL Injection usando prepared statements
-- Headers CORS configurados para desenvolvimento
+- ✅ **Senhas criptografadas** com `password_hash()`
+- ✅ **Validação robusta** de dados de entrada  
+- ✅ **Proteção SQL Injection** com prepared statements
+- ✅ **CORS configurado** para desenvolvimento
+- ✅ **Credenciais seguras** em arquivos .env
+- ✅ **Sanitização de inputs** e validação de tipos
+
+## 📚 Documentação Extra
+
+- 📖 **[COMO_USAR_ENV.md](COMO_USAR_ENV.md)**: Guia completo sobre arquivos .env
+- 🔧 **database/schema.sql**: Estrutura completa do banco
+- ⚙️ **config/**: Arquivos de configuração organizados
+
+## 🚀 Status do Projeto
+
+- ✅ **Sistema de autenticação** completo
+- ✅ **APIs de música** funcionais  
+- ✅ **Integração com 3 APIs** externas
+- ✅ **Documentação** completa
+- ✅ **Pronto para produção**
+
+---
+
+💡 **Dica**: Para dúvidas sobre .env, consulte o arquivo [COMO_USAR_ENV.md](COMO_USAR_ENV.md)
