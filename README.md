@@ -262,9 +262,9 @@ if (data.sucesso) {
 ### Exemplo Completo .env
 ```env
 # APIs de Música
-LASTFM_API_KEY=5568698d9b6f861a200fca088965d462
-SPOTIFY_CLIENT_ID=f4ad70f409ae4632a64aa40fc8113c60
-SPOTIFY_CLIENT_SECRET=4270e4e066474850b811eb85fd285a17
+LASTFM_API_KEY=sua_chave_lastfm_aqui
+SPOTIFY_CLIENT_ID=seu_client_id_aqui
+SPOTIFY_CLIENT_SECRET=seu_client_secret_aqui
 
 # Banco de Dados  
 DB_HOST=localhost
