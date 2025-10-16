@@ -10,6 +10,8 @@ class SpotifyAPI {
     public function __construct($clientId, $clientSecret) {
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
+        $this->accessToken = $this->getAccessToken();
+
     }
 
     private function getAccessToken() {
@@ -257,4 +259,39 @@ public function getTopMusicas($limit = 10) {
         return $tracks;
     }
 }
+
+ /**
+     * Busca por músicas na API do Spotify.
+     *
+     * @param string $query O termo que será buscado.
+     * @param int $limit O número máximo de resultados.
+     * @return array|null Uma lista de músicas ou null em caso de erro.
+     */
+    public function searchTracks($query, $limit = 10)
+    {
+        if (!$this->accessToken) {
+            return null; // Não foi possível obter o token
+        }
+
+        $query = urlencode($query);
+        $url = "https://api.spotify.com/v1/search?q={$query}&type=track&limit={$limit}";
+
+        $options = [
+            'http' => [
+                'header' => "Authorization: Bearer " . $this->accessToken,
+                'method' => 'GET',
+            ],
+        ];
+
+        $context = stream_context_create($options);
+        $result = file_get_contents($url, false, $context);
+
+        if ($result === FALSE) {
+            // Lidar com o erro
+            return null;
+        }
+
+        return json_decode($result);
+    }
+
 }
