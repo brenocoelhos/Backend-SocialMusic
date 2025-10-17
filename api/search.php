@@ -6,10 +6,10 @@ error_reporting(E_ALL);
 // Headers de resposta
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS'); 
+header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../classes/SpotifyAPI.php';
 
 try {
     // Carregar .env
@@ -19,31 +19,30 @@ try {
         foreach ($lines as $line) {
             if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
                 list($key, $value) = explode('=', $line, 2);
-                $_ENV[trim($key)] = trim($value);
+                $_ENV[trim($key)] = trim(trim($value, '"'));
             }
         }
     }
-}
 
-require 'classes/SpotifyAPI.php';
+    $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? null;
+    $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? null;
 
-//Verifica se as credenciais carregaram
-if (!$clientId || !$clientSecret) {
-    http_response_code(500);
-    echo json_encode(['error' => 'As credenciais da API do Spotify não foram configuradas no arquivo .env.']);
-    exit;
-}
+    //Verifica se as credenciais carregaram
+    if (!$clientId || !$clientSecret) {
+        http_response_code(500);
+        echo json_encode(['error' => 'As credenciais da API do Spotify não foram configuradas no arquivo .env.']);
+        exit;
+    }
 
-// Verifica se o parâmetro de busca 'q' foi enviado na URL
-if (!isset($_GET['q']) || empty(trim($_GET['q']))) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Parâmetro de busca "q" é obrigatório.']);
-    exit;
-}
+    // Verifica se o parâmetro de busca 'q' foi enviado na URL
+    if (!isset($_GET['q']) || empty(trim($_GET['q']))) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Parâmetro de busca "q" é obrigatório.']);
+        exit;
+    }
 
-$searchQuery = $_GET['q'];
+    $searchQuery = $_GET['q'];
 
-try {
     // Instancia a classe da API
     $api = new SpotifyAPI($clientId, $clientSecret);
 
@@ -56,6 +55,7 @@ try {
 
     $results = [];
     foreach ($data->tracks->items as $track) {
+
         // Nome dos artistas 
         $artists = [];
         foreach ($track->artists as $artist) {
@@ -77,7 +77,8 @@ try {
     // Resultados formatados em JSON
     echo json_encode($results);
 
-} catch (Exception $e) {
+} catch (Exception $e) { 
     http_response_code(500);
+    error_log("Erro em search.php: " . $e->getMessage());
     echo json_encode(['error' => 'Ocorreu um erro no servidor: ' . $e->getMessage()]);
 }
