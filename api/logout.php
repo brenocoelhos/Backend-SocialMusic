@@ -1,13 +1,13 @@
 <?php
 /**
- * API de Logout
+ * API de Logout - Suporte a sessões e tokens
  * Endpoint: POST /api/logout.php
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Responde OPTIONS para CORS preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -15,10 +15,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Inicia sessão
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../classes/AuthManager.php';
+
+try {
+    // Logout via token
+    $token = $_COOKIE['auth_token'] ?? null;
+    
+    if (!$token && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $auth = $_SERVER['HTTP_AUTHORIZATION'];
+        if (strpos($auth, 'Bearer ') === 0) {
+            $token = substr($auth, 7);
+        }
+    }
+    
+    if (!$token) {
+        $token = $_GET['token'] ?? $_POST['token'] ?? null;
+    }
+    
+    $tokenLogout = false;
+    
+    if ($token) {
+        // Conectar ao banco e fazer logout via token
+        $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET, DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]);
+        
+        $authManager = new AuthManager($pdo);
+        $tokenLogout = $authManager->logout($token);
+        
+        // Limpar cookie
+        setcookie('auth_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'domain' => '',
+            'secure' => false,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+    
+    // Logout via sessão (fallback/compatibilidade)
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
 
 try {
     // Remove todas as variáveis de sessão

@@ -17,7 +17,10 @@ try {
         foreach ($lines as $line) {
             if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
                 list($key, $value) = explode('=', $line, 2);
-                $_ENV[trim($key)] = trim($value);
+                $key = trim($key);
+                $value = trim($value);
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
             }
         }
     }
@@ -25,40 +28,49 @@ try {
     $tipo = $_GET['tipo'] ?? 'populares';
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 6;
     
-    if ($tipo === 'populares') {
-        // Use Last.fm for populares
-        require_once '../classes/LastFmAPI.php';
-        $apiKey = $_ENV['LASTFM_API_KEY'] ?? '';
-        
-        if (empty($apiKey)) {
-            throw new Exception("API Key do Last.fm não encontrada no .env");
-        }
-        
-        $lastfm = new LastFmAPI($apiKey);
-        $musicas = $lastfm->getTrendingTracks($limit);
-        
-    } else {
-        // Use Spotify for other types
-        require_once '../classes/SpotifyAPI.php';
-        $config = include '../config/spotify.php';
-        $spotify = new SpotifyAPI($config['client_id'], $config['client_secret']);
-        
-        switch ($tipo) {
-            case 'top':
-                $musicas = $spotify->getTopMusicas($limit);
-                break;
-            case 'brasil':
+    // Verificar se temos autenticação OAuth do dono
+    require_once __DIR__ . '/../classes/SpotifyOwnerAuth.php';
+    $ownerAuth = new SpotifyOwnerAuth();
+    
+    // Determinar credenciais e tipo de acesso
+    $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? '';
+    $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? '';
+    $accessToken = null;
+    $fonte = 'Spotify (Suas Credenciais)';
+    
+    if ($ownerAuth->isAuthenticated()) {
+        $accessToken = $ownerAuth->getAccessToken();
+        $fonte = 'Spotify (Sua Conta OAuth)';
+    }
+    
+    // Usar Spotify com credenciais apropriadas
+    require_once __DIR__ . '/../classes/SpotifyAPI.php';
+    
+    $spotify = new SpotifyAPI($clientId, $clientSecret, $accessToken);
+    
+    switch ($tipo) {
+        case 'populares':
+            $musicas = $spotify->getMusicasPopulares($limit);
+            break;
+        case 'top':
+            $musicas = $spotify->getTopMusicas($limit);
+            break;
+        case 'brasil':
+            if (method_exists($spotify, 'getTopBrasil')) {
                 $musicas = $spotify->getTopBrasil($limit);
-                break;
-            default:
-                throw new Exception('Tipo de requisição inválido');
-        }
+            } else {
+                $musicas = $spotify->getMusicasPopulares($limit);
+            }
+            break;
+        default:
+            throw new Exception('Tipo de requisição inválido');
     }
     
     echo json_encode([
         'sucesso' => true,
         'tipo' => $tipo,
-        'fonte' => $tipo === 'populares' ? 'Last.fm' : 'Spotify',
+        'fonte' => $fonte,
+        'oauth_ativo' => $ownerAuth->isAuthenticated(),
         'musicas' => $musicas
     ], JSON_UNESCAPED_UNICODE);
     

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Autenticação Spotify Owner</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 900px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background: #191414;
+            color: #fff;
+        }
+        .container {
+            background: #282828;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #1DB954;
+            margin-bottom: 30px;
+        }
+        button { 
+            padding: 12px 24px; 
+            margin: 10px; 
+            background: #1DB954; 
+            color: white; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        button:hover { 
+            background: #1ed760;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #535353;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result { 
+            margin: 20px 0; 
+            padding: 20px; 
+            background: #3e3e3e; 
+            border-radius: 10px;
+            border-left: 4px solid #1DB954;
+        }
+        .error { 
+            background: #5e2e2e; 
+            border-left-color: #e22134;
+            color: #ffb3b3;
+        }
+        .success { 
+            background: #2e5e2e; 
+            border-left-color: #1DB954;
+            color: #b3ffb3;
+        }
+        .status-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .status-card {
+            background: #404040;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .status-card h4 {
+            margin: 0 0 10px 0;
+            color: #1DB954;
+        }
+        .auth-link {
+            display: inline-block;
+            background: #1DB954;
+            color: white !important;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        .auth-link:hover {
+            background: #1ed760;
+            transform: translateY(-2px);
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #404040;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #404040;
+            border-radius: 50%;
+            border-top-color: #1DB954;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Autenticação Spotify Owner</h1>
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <button onclick="obterUrlAutorizacao()" id="btnAutorizar">
+                🔗 1. Obter URL de Autorização
+            </button>
+            <button onclick="verificarStatus()" id="btnStatus">
+                📊 2. Verificar Status da Autenticação
+            </button>
+            <button onclick="obterInfoUsuario()" id="btnInfo">
+                👤 3. Informações do Usuário
+            </button>
+        </div>
+        
+        <div id="resultado" style="display: none;"></div>
+    </div>
+    
+    <script>
+        // URL do seu backend - Ajuste conforme necessário
+        const BASE_URL = 'http://localhost/socialmusic_backend/api';
+        
+        function mostrarResultado(html, isError = false) {
+            const div = document.getElementById('resultado');
+            div.innerHTML = html;
+            div.className = 'result ' + (isError ? 'error' : 'success');
+            div.style.display = 'block';
+            
+            // Scroll suave para o resultado
+            div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        function mostrarCarregando(botaoId) {
+            const btn = document.getElementById(botaoId);
+            const textoOriginal = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> Carregando...';
+            btn.disabled = true;
+            
+            return () => {
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            };
+        }
+        
+        async function obterUrlAutorizacao() {
+            const pararCarregando = mostrarCarregando('btnAutorizar');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/spotify_auth_owner.php?action=authorize_url`);
+                const data = await response.json();
+                
+                if (data.sucesso) {
+                    mostrarResultado(`
+                        <h3>✅ URL de Autorização Gerada!</h3>
+                        <div class="status-info">
+                            <div class="status-card">
+                                <h4>🔐 State</h4>
+                                <code>${data.state}</code>
+                            </div>
+                            <div class="status-card">
+                                <h4>🎯 Scopes</h4>
+                                <code>${data.scopes}</code>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin: 20px 0;">
+                            <a href="${data.auth_url}" target="_blank" class="auth-link">
+                                🚀 AUTORIZAR NO SPOTIFY
+                            </a>
+                        </div>
+                        <p><strong>📝 Instruções:</strong></p>
+                        <ol>
+                            <li>Clique no botão acima para abrir o Spotify</li>
+                            <li>Faça login e autorize o aplicativo</li>
+                            <li>Após autorizar, volte aqui e clique em "Verificar Status"</li>
+                        </ol>
+                    `);
+                } else {
+                    mostrarResultado(`
+                        <h3>❌ Erro ao gerar URL:</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `, true);
+                }
+            } catch (error) {
+                mostrarResultado(`
+                    <h3>❌ Erro de conexão:</h3>
+                    <p>${error.message}</p>
+                    <p><strong>Dica:</strong> Verifique se o XAMPP está rodando e se o ngrok está ativo.</p>
+                `, true);
+            } finally {
+                pararCarregando();
+            }
+        }
+        
+        async function verificarStatus() {
+            const pararCarregando = mostrarCarregando('btnStatus');
+            
+            try {
+                console.log('Verificando status em:', `${BASE_URL}/spotify_auth_owner.php?action=status`);
+                
+                const response = await fetch(`${BASE_URL}/spotify_auth_owner.php?action=status`);
+                
+                console.log('Status da resposta:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Dados recebidos:', data);
+                
+                if (data.autenticado) {
+                    const expiresInSeconds = data.expira_em || 0;
+                    const isExpiringSoon = expiresInSeconds < 300; // Menos de 5 minutos
+                    
+                    mostrarResultado(`
+                        <h3>✅ Autenticação Ativa!</h3>
+                        <div class="status-info">
+                            <div class="status-card">
+                                <h4>⏰ Expira em</h4>
+                                <strong style="color: ${isExpiringSoon ? '#ff6b6b' : '#1DB954'}">${data.expira_em_texto}</strong>
+                                ${isExpiringSoon ? '<br><small style="color: #ff6b6b;">⚠️ Expira em breve!</small>' : ''}
+                            </div>
+                            <div class="status-card">
+                                <h4>📅 Autenticado em</h4>
+                                <strong>${data.autenticado_em}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>🔑 Scopes Ativos</h4>
+                                <div>${data.scopes && data.scopes.length ? data.scopes.join('<br>') : 'Nenhum scope'}</div>
+                            </div>
+                        </div>
+                        <p style="color: #1DB954; font-weight: bold; text-align: center; margin-top: 20px;">
+                            🎉 Seu Spotify está conectado e pronto para usar!
+                        </p>
+                        ${isExpiringSoon ? `
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button onclick="renovarToken()" style="background: #ff6b6b;">
+                                🔄 Renovar Token
+                            </button>
+                        </div>
+                        ` : ''}
+                    `);
+                } else {
+                    mostrarResultado(`
+                        <h3>❌ Não Autenticado</h3>
+                        <p>${data.mensagem || 'Status de autenticação desconhecido'}</p>
+                        <div style="background: #404040; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4>🔍 Debug Info:</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                        <p><strong>📋 Para autenticar:</strong></p>
+                        <ol>
+                            <li>Clique em "Obter URL de Autorização"</li>
+                            <li>Autorize no Spotify</li>
+                            <li>Volte aqui e verifique o status novamente</li>
+                        </ol>
+                    `, true);
+                }
+            } catch (error) {
+                console.error('Erro na verificação:', error);
+                mostrarResultado(`
+                    <h3>❌ Erro de conexão:</h3>
+                    <p><strong>Erro:</strong> ${error.message}</p>
+                    <p><strong>URL testada:</strong> ${BASE_URL}/spotify_auth_owner.php?action=status</p>
+                    <div style="background: #404040; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <h4>🔧 Possíveis soluções:</h4>
+                        <ul>
+                            <li>Verifique se o XAMPP está rodando</li>
+                            <li>Verifique se o ngrok está ativo</li>
+                            <li>Teste a URL manualmente no navegador</li>
+                            <li>Verifique o console do navegador (F12)</li>
+                        </ul>
+                    </div>
+                `, true);
+            } finally {
+                pararCarregando();
+            }
+        }
+        
+        async function obterInfoUsuario() {
+            const pararCarregando = mostrarCarregando('btnInfo');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/spotify_owner_info.php?action=user`);
+                const data = await response.json();
+                
+                if (data.sucesso) {
+                    const user = data.usuario;
+                    mostrarResultado(`
+                        <h3>👤 Informações do Usuário Spotify</h3>
+                        <div class="status-info">
+                            <div class="status-card">
+                                <h4>🎵 Nome</h4>
+                                <strong>${user.display_name || 'N/A'}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>📧 Email</h4>
+                                <strong>${user.email || 'N/A'}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>🆔 ID</h4>
+                                <strong>${user.id || 'N/A'}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>👥 Seguidores</h4>
+                                <strong>${user.followers?.total || 0}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>🌍 País</h4>
+                                <strong>${user.country || 'N/A'}</strong>
+                            </div>
+                            <div class="status-card">
+                                <h4>💎 Plano</h4>
+                                <strong>${user.product || 'N/A'}</strong>
+                            </div>
+                        </div>
+                    `);
+                } else {
+                    mostrarResultado(`
+                        <h3>❌ Erro ao obter informações:</h3>
+                        <p>${data.erro}</p>
+                        <p><strong>Dica:</strong> Certifique-se de que você está autenticado primeiro.</p>
+                    `, true);
+                }
+            } catch (error) {
+                mostrarResultado(`
+                    <h3>❌ Erro de conexão:</h3>
+                    <p>${error.message}</p>
+                `, true);
+            } finally {
+                pararCarregando();
+            }
+        }
+        
+        async function renovarToken() {
+            mostrarResultado(`
+                <h3>🔄 Renovando Token...</h3>
+                <p>Tentando renovar automaticamente com o refresh token...</p>
+            `);
+            
+            // Simplesmente verificar status novamente, pois a API já renova automaticamente
+            setTimeout(verificarStatus, 2000);
+        }
+        
+        // Verificar status automaticamente ao carregar a página
+        window.addEventListener('load', function() {
+            console.log('Página carregada, verificando status...');
+            setTimeout(verificarStatus, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -6,12 +6,15 @@ class SpotifyAPI {
     private $clientSecret;
     private $accessToken;
     private $tokenExpiration;
+    private $userAccessToken; // Token do usuário para acessar playlists privadas
+    private $userTokenExpiration;
 
-    public function __construct($clientId, $clientSecret) {
+    public function __construct($clientId, $clientSecret, $userAccessToken = null, $userTokenExpiration = null) {
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
+        $this->userAccessToken = $userAccessToken;
+        $this->userTokenExpiration = $userTokenExpiration;
         $this->accessToken = $this->getAccessToken();
-
     }
 
     private function getAccessToken() {
@@ -20,10 +23,6 @@ class SpotifyAPI {
         }
 
         $ch = curl_init();
-        
-        // Log das credenciais (apenas primeiros caracteres por segurança)
-        error_log("Client ID (primeiros 5 caracteres): " . substr($this->clientId, 0, 5));
-        error_log("Client Secret (primeiros 5 caracteres): " . substr($this->clientSecret, 0, 5));
         
         curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -45,7 +44,6 @@ class SpotifyAPI {
             return $this->accessToken;
         }
         if (!isset($data['access_token'])) {
-        error_log("Erro Token Spotify: " . print_r($data, true));
         throw new Exception('Erro ao obter token do Spotify: ' . ($data['error_description'] ?? 'Credenciais inválidas'));
     }
 
@@ -53,11 +51,13 @@ class SpotifyAPI {
         throw new Exception('Erro ao obter token do Spotify');
     }
 
-    private function makeRequest($url) {
-        $token = $this->getAccessToken();
+    private function makeRequest($url, $useUserToken = false) {
+        // Usar token do usuário se disponível e solicitado, senão usar token da aplicação
+        $token = ($useUserToken && $this->isUserTokenValid()) ? 
+                 $this->userAccessToken : 
+                 $this->getAccessToken();
         
         $ch = curl_init();
-        error_log("Fazendo requisição para URL: " . $url);
         
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -72,12 +72,6 @@ class SpotifyAPI {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         
-        // Log detalhado da requisição
-        error_log("Spotify Request URL: $url");
-        error_log("Spotify Response Code: $httpCode");
-        error_log("Spotify Response: $response");
-        if ($error) error_log("Spotify cURL Error: $error");
-        
         curl_close($ch);
 
         if ($httpCode !== 200) {
@@ -87,18 +81,25 @@ class SpotifyAPI {
         return json_decode($response, true);
     }
 
-    public function getPlaylistTracks($playlistId, $limit = 10) {
-        error_log("Buscando tracks da playlist ID: " . $playlistId);
+    /**
+     * Verifica se o token do usuário ainda é válido
+     */
+    private function isUserTokenValid() {
+        return $this->userAccessToken && 
+               ($this->userTokenExpiration === null || time() < $this->userTokenExpiration);
+    }
+
+    public function getPlaylistTracks($playlistId, $limit = 10, $useUserToken = false) {
+
         
         // Buscar as tracks diretamente
         $url = "https://api.spotify.com/v1/playlists/{$playlistId}/tracks?limit={$limit}&market=BR";
-        $data = $this->makeRequest($url);
+        $data = $this->makeRequest($url, $useUserToken);
         
         $tracks = [];
         foreach ($data['items'] as $item) {
-            if (isset($item['track'])) {
+            if (isset($item['track']) && $item['track']) {
                 $track = $item['track'];
-                error_log("Processando track: " . $track['name'] . " por " . $track['artists'][0]['name']);
                 $tracks[] = [
                     'id' => $track['id'],
                     'titulo' => $track['name'],
@@ -110,18 +111,40 @@ class SpotifyAPI {
             }
         }
         
-        error_log("Total de tracks encontradas: " . count($tracks));
+
         return $tracks;
     }
 
     public function getMusicasPopulares($limit = 6) {
         try {
-            error_log("Iniciando getMusicasPopulares()");
+            // Primeiro, tentar a playlist específica "Top 50 - Brasil"
+            $popularesPlaylistId = "37i9dQZEVXbMXbN3EUUhlg";
             
-            // Buscar primeiro as charts/playlists do Brasil
+            try {
+
+                
+                // Tentar primeiro com token do usuário (se disponível)
+                if ($this->isUserTokenValid()) {
+                    try {
+                        return $this->getPlaylistTracks($popularesPlaylistId, $limit, true);
+                    } catch (Exception $e) {
+
+                        // Continua para tentar com token da aplicação
+                    }
+                }
+                
+                // Tentar com token da aplicação
+                return $this->getPlaylistTracks($popularesPlaylistId, $limit, false);
+                
+            } catch (Exception $e) {
+
+                // Continua para métodos alternativos
+            }
+            
+            // Fallback 1: Buscar nas charts/playlists do Brasil
+
             $url = "https://api.spotify.com/v1/browse/categories/charts/playlists?country=BR&limit=10";
             $data = $this->makeRequest($url);
-            error_log("Charts playlists response: " . print_r($data, true));
             
             // Procurar por uma playlist que contenha "top" ou "viral" no nome
             if (isset($data['playlists']['items']) && !empty($data['playlists']['items'])) {
@@ -129,42 +152,44 @@ class SpotifyAPI {
                     if (stripos($playlist['name'], 'top') !== false || 
                         stripos($playlist['name'], 'viral') !== false ||
                         stripos($playlist['name'], 'hits') !== false) {
-                        error_log("Playlist encontrada: " . $playlist['name']);
+
                         return $this->getPlaylistTracks($playlist['id'], $limit);
                     }
                 }
             }
             
-            // Se não encontrar nas charts, tentar featured playlists
+            // Fallback 2: Featured playlists
+
             $url = "https://api.spotify.com/v1/browse/featured-playlists?country=BR&limit=1&timestamp=" . urlencode(date('Y-m-d\TH:i:s'));
             $data = $this->makeRequest($url);
             
             if (isset($data['playlists']['items'][0])) {
                 $playlist = $data['playlists']['items'][0];
-                error_log("Usando featured playlist: " . $playlist['name']);
+
                 return $this->getPlaylistTracks($playlist['id'], $limit);
             }
             
             throw new Exception("Nenhuma playlist adequada encontrada");
         } catch (Exception $e) {
-            error_log("Erro ao buscar músicas populares: " . $e->getMessage());
+
             return $this->getTopMusicas($limit);
         }
     }
 
 public function getTopMusicas($limit = 10) {
     try {
-        error_log("Iniciando getTopMusicas()");
+
         
         // Tentar primeiro o Last.fm
         try {
-            error_log("Tentando buscar trending tracks do Last.fm");
+
+            require_once __DIR__ . '/LastFmAPI.php';
             $lastFmConfig = require __DIR__ . '/../config/lastfm.php';
             $lastFm = new LastFmAPI($lastFmConfig['api_key']);
             $tracks = $lastFm->getTrendingTracks($limit);
             
             if (!empty($tracks)) {
-                error_log("Tracks encontradas no Last.fm com sucesso");
+
                 
                 // Tentar enriquecer com preview_urls do Spotify
                 foreach ($tracks as &$track) {
@@ -178,18 +203,18 @@ public function getTopMusicas($limit = 10) {
                             $track['capa'] = $spotifyTrack['album']['images'][0]['url'] ?? $track['capa'];
                         }
                     } catch (Exception $e) {
-                        error_log("Erro ao enriquecer track com dados do Spotify: " . $e->getMessage());
+
                     }
                 }
                 
                 return $tracks;
             }
         } catch (Exception $e) {
-            error_log("Erro ao buscar do Last.fm: " . $e->getMessage());
+
         }
         
         // Se Last.fm falhar, tentar new releases do Spotify
-        error_log("Last.fm falhou, tentando new releases do Spotify");
+
         $url = "https://api.spotify.com/v1/browse/new-releases?country=BR&limit={$limit}";
         $data = $this->makeRequest($url);
         
@@ -200,7 +225,7 @@ public function getTopMusicas($limit = 10) {
         $tracks = [];
         foreach ($data['albums']['items'] as $album) {
             // Buscar a primeira track de cada álbum
-            error_log("Buscando primeira track do álbum: " . $album['name']);
+
             $albumTracksUrl = "https://api.spotify.com/v1/albums/{$album['id']}/tracks?limit=1";
             try {
                 $trackData = $this->makeRequest($albumTracksUrl);
@@ -214,9 +239,9 @@ public function getTopMusicas($limit = 10) {
                     'previewUrl' => $previewUrl,
                     'popularidade' => $album['popularity'] ?? 90
                 ];
-                error_log("Track adicionada: {$album['name']} por {$album['artists'][0]['name']}");
+
             } catch (Exception $e) {
-                error_log("Erro ao buscar track do álbum {$album['name']}: " . $e->getMessage());
+
                 continue;
             }
         }
@@ -227,7 +252,7 @@ public function getTopMusicas($limit = 10) {
         
         return $tracks;
     } catch (Exception $e) {
-        error_log("Erro ao buscar top músicas, usando new releases como último recurso: " . $e->getMessage());
+
         
         // Último recurso: new releases
         $url = "https://api.spotify.com/v1/browse/new-releases?limit={$limit}&country=BR";
@@ -241,7 +266,7 @@ public function getTopMusicas($limit = 10) {
                 $trackData = $this->makeRequest($albumTracksUrl);
                 $previewUrl = !empty($trackData['items'][0]['preview_url']) ? $trackData['items'][0]['preview_url'] : null;
             } catch (Exception $e) {
-                error_log("Erro ao buscar preview da track: " . $e->getMessage());
+
                 $previewUrl = null;
             }
 

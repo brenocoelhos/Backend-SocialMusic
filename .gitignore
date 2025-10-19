@@ -1,5 +1,17 @@
-# Ignore environment files
+# Environment variables
 .env
+
+# Temporary files with sensitive data
+temp/
+temp/*.json
+temp/*.txt
+
+# Database configuration (if contains credentials)
+config/database.local.php
+
+# Logs
+*.log
+error.log
 
 # Composer / PHP
 vendor/
@@ -9,4 +21,19 @@ node_modules/
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# User uploads
+uploads/
+temp_uploads/

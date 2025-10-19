@@ -25,17 +25,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 
-// Inicia sessão
+// Inicia sessão com configurações mais permissivas
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Lax'); // Mudando para Lax para teste
+    ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.cookie_lifetime', 3600); // 1 hora
+    ini_set('session.gc_maxlifetime', 3600);
+    session_name('SOCIALMUSIC_SESSION');
     session_start();
 }
 
 // Debug - Log do início da sessão
-error_log('Nova sessão iniciada em autentica.php');
-error_log('SESSION ID: ' . session_id());
+
+
 
 /**
  * Registra tentativa de login
@@ -48,7 +51,7 @@ function registraTentativaLogin($email, $sucesso) {
         $stmt = $db->prepare("INSERT INTO tentativas_login (email, ip_address, sucesso) VALUES (?, ?, ?)");
         $stmt->execute([$email, $ip, $sucesso ? 1 : 0]);
     } catch (Exception $e) {
-        error_log("Erro ao registrar tentativa: " . $e->getMessage());
+
     }
 }
 
@@ -74,34 +77,42 @@ function verificaBloqueio($email) {
         
         return $resultado['tentativas'] >= 5;
     } catch (Exception $e) {
-        error_log("Erro ao verificar bloqueio: " . $e->getMessage());
+
         return false;
     }
 }
 
 try {
-    // Recebe dados JSON
+    // Recebe dados JSON ou form data
     $json = file_get_contents('php://input');
     $dados = json_decode($json, true);
+    
+    // Se não conseguiu decodificar JSON, tenta $_POST
+    if (!$dados && !empty($_POST)) {
+        $dados = $_POST;
+    }
     
     if (!$dados) {
         throw new Exception('Dados inválidos');
     }
     
-    // Validações
-    $email = filter_var($dados['email'] ?? '', FILTER_SANITIZE_EMAIL);
+    // Aceita 'email', 'usuario' ou 'username'
+    $login = $dados['email'] ?? $dados['usuario'] ?? $dados['username'] ?? '';
     $senha = $dados['senha'] ?? '';
     
-    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        throw new Exception('E-mail inválido');
+    if (empty($login)) {
+        throw new Exception('Email ou usuário é obrigatório');
     }
     
     if (empty($senha)) {
         throw new Exception('Senha é obrigatória');
     }
     
-    // Verifica bloqueio
-    if (verificaBloqueio($email)) {
+    // Determina se é email ou username
+    $isEmail = filter_var($login, FILTER_VALIDATE_EMAIL);
+    
+    // Verifica bloqueio (usa login como identificador)
+    if (verificaBloqueio($login)) {
         http_response_code(429);
         echo json_encode([
             'sucesso' => false,
@@ -112,13 +123,17 @@ try {
     
     // Busca usuário
     $db = Database::getInstance()->getConnection();
-    $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
-    $stmt->execute([$email]);
+    if ($isEmail) {
+        $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
+    } else {
+        $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE username = ?");
+    }
+    $stmt->execute([$login]);
     $usuario = $stmt->fetch();
     
     // Valida credenciais
     if (!$usuario || !password_verify($senha, $usuario['senha_hash'])) {
-        registraTentativaLogin($email, false);
+        registraTentativaLogin($login, false);
         
         http_response_code(401);
         echo json_encode([
@@ -160,7 +175,7 @@ try {
     $_SESSION['ip_login'] = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     
     // Registra sucesso
-    registraTentativaLogin($email, true);
+    registraTentativaLogin($login, true);
     
     // Resposta de sucesso
     $resposta = [
