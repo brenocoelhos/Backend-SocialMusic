@@ -10,67 +10,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    // Carregar .env
-    $envFile = __DIR__ . '/../.env';
-    if (file_exists($envFile)) {
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        foreach ($lines as $line) {
-            if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
-                list($key, $value) = explode('=', $line, 2);
-                $key = trim($key);
-                $value = trim($value);
-                $_ENV[$key] = $value;
-                putenv($key . '=' . $value);
-            }
-        }
-    }
+    // Carregar configuração do Last.fm
+    require_once __DIR__ . '/../config/lastfm.php';
+    require_once __DIR__ . '/../classes/LastFmAPI.php';
     
-    $tipo = $_GET['tipo'] ?? 'populares';
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 6;
     
-    // Verificar se temos autenticação OAuth do dono
-    require_once __DIR__ . '/../classes/SpotifyOwnerAuth.php';
-    $ownerAuth = new SpotifyOwnerAuth();
-    
-    // Determinar credenciais e tipo de acesso
-    $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? '';
-    $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? '';
-    $accessToken = null;
-    $fonte = 'Spotify (Suas Credenciais)';
-    
-    if ($ownerAuth->isAuthenticated()) {
-        $accessToken = $ownerAuth->getAccessToken();
-        $fonte = 'Spotify (Sua Conta OAuth)';
-    }
-    
-    // Usar Spotify com credenciais apropriadas
-    require_once __DIR__ . '/../classes/SpotifyAPI.php';
-    
-    $spotify = new SpotifyAPI($clientId, $clientSecret, $accessToken);
-    
-    switch ($tipo) {
-        case 'populares':
-            $musicas = $spotify->getMusicasPopulares($limit);
-            break;
-        case 'top':
-            $musicas = $spotify->getTopMusicas($limit);
-            break;
-        case 'brasil':
-            if (method_exists($spotify, 'getTopBrasil')) {
-                $musicas = $spotify->getTopBrasil($limit);
-            } else {
-                $musicas = $spotify->getMusicasPopulares($limit);
-            }
-            break;
-        default:
-            throw new Exception('Tipo de requisição inválido');
-    }
+    // Usar apenas Last.fm para músicas populares
+    $lastfm = new LastFmAPI(LASTFM_API_KEY);
+    $musicas = $lastfm->getTrendingTracks($limit);
     
     echo json_encode([
         'sucesso' => true,
-        'tipo' => $tipo,
-        'fonte' => $fonte,
-        'oauth_ativo' => $ownerAuth->isAuthenticated(),
+        'tipo' => 'populares',
+        'fonte' => 'Last.fm Global Charts',
         'musicas' => $musicas
     ], JSON_UNESCAPED_UNICODE);
     

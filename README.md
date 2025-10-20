@@ -5,7 +5,7 @@ Backend completo da aplicação Social Music, desenvolvida em PHP com integraç�
 ## ✨ Funcionalidades
 
 - � **Sistema completo de autenticação** (cadastro, login, logout)
-- 🎵 **API de músicas populares** (Last.fm Global Charts + iTunes)
+- 🎵 **API de músicas populares** (Last.fm Global Charts com imagens do iTunes)
 - 🔍 **API de busca de músicas** (Spotify API)
 - 📊 **Dados em tempo real** com imagens de alta qualidade
 - 🔒 **Configuração segura** com arquivos .env
@@ -136,20 +136,19 @@ Autenticação de usuários registrados.
 ### 🎵 APIs de Música
 
 #### GET /api/spotify_musicas.php
-Busca músicas populares globais com dados do Last.fm e imagens do iTunes.
+Busca músicas populares globais usando apenas Last.fm com imagens do iTunes.
 
 **Parâmetros:**
-- `tipo=populares` (padrão)
 - `limit=6` (opcional, 1-50)
 
-**Exemplo:** `GET /api/spotify_musicas.php?tipo=populares&limit=10`
+**Exemplo:** `GET /api/spotify_musicas.php?limit=10`
 
 **Resposta:**
 ```json
 {
     "sucesso": true,
     "tipo": "populares", 
-    "fonte": "Last.fm",
+    "fonte": "Last.fm Global Charts",
     "musicas": [
         {
             "titulo": "Anti-Hero",
@@ -228,14 +227,14 @@ Busca personalizada de músicas usando Spotify API.
 http://localhost/socialmusic_backend/api/
 
 # Exemplos de teste
-http://localhost/socialmusic_backend/api/spotify_musicas.php?tipo=populares
+http://localhost/socialmusic_backend/api/spotify_musicas.php
 http://localhost/socialmusic_backend/api/buscar_musicas.php?q=taylor+swift&limit=5
 ```
 
 ### 3. Teste no Frontend
 ```javascript
-// Exemplo Vue.js/JavaScript
-const response = await fetch('http://localhost/socialmusic_backend/api/spotify_musicas.php?tipo=populares&limit=6');
+// Exemplo Vue.js/JavaScript - Carrega junto com a página
+const response = await fetch('http://localhost/socialmusic_backend/api/spotify_musicas.php?limit=6');
 const data = await response.json();
 
 if (data.sucesso) {

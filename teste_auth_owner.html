@@ -165,6 +165,9 @@
                 const data = await response.json();
                 
                 if (data.sucesso) {
+                    // Salvar a URL globalmente para o botão
+                    window.spotifyAuthUrl = data.auth_url;
+                    
                     mostrarResultado(`
                         <h3>✅ URL de Autorização Gerada!</h3>
                         <div class="status-info">
@@ -178,9 +181,9 @@
                             </div>
                         </div>
                         <div style="text-align: center; margin: 20px 0;">
-                            <a href="${data.auth_url}" target="_blank" class="auth-link">
+                            <button onclick="abrirAutorizacaoSpotify()" style="padding: 15px 30px; font-size: 16px;">
                                 🚀 AUTORIZAR NO SPOTIFY
-                            </a>
+                            </button>
                         </div>
                         <p><strong>📝 Instruções:</strong></p>
                         <ol>
@@ -188,6 +191,10 @@
                             <li>Faça login e autorize o aplicativo</li>
                             <li>Após autorizar, volte aqui e clique em "Verificar Status"</li>
                         </ol>
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; color: #1DB954;">🔗 Ver URL completa</summary>
+                            <pre style="word-break: break-all; white-space: pre-wrap;">${data.auth_url}</pre>
+                        </details>
                     `);
                 } else {
                     mostrarResultado(`
@@ -355,6 +362,39 @@
             
             // Simplesmente verificar status novamente, pois a API já renova automaticamente
             setTimeout(verificarStatus, 2000);
+        }
+        
+        function abrirAutorizacaoSpotify() {
+            if (window.spotifyAuthUrl) {
+                // Abrir em nova janela com dimensões específicas
+                const width = 600;
+                const height = 800;
+                const left = (screen.width / 2) - (width / 2);
+                const top = (screen.height / 2) - (height / 2);
+                
+                const authWindow = window.open(
+                    window.spotifyAuthUrl,
+                    'SpotifyAuth',
+                    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                );
+                
+                if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
+                    // Pop-up foi bloqueado
+                    alert('⚠️ Pop-up bloqueado! Por favor, permita pop-ups para este site e tente novamente.\n\nOu copie a URL abaixo e cole no navegador:\n\n' + window.spotifyAuthUrl);
+                } else {
+                    // Focar na janela aberta
+                    authWindow.focus();
+                    
+                    mostrarResultado(`
+                        <h3>✅ Janela de Autorização Aberta!</h3>
+                        <p>🎵 Uma nova janela foi aberta para você autorizar no Spotify.</p>
+                        <p><strong>Aguardando autorização...</strong></p>
+                        <p style="color: #1DB954;">Após autorizar, volte aqui e clique em "Verificar Status"</p>
+                    `);
+                }
+            } else {
+                alert('❌ URL de autorização não encontrada. Clique em "Obter URL de Autorização" primeiro.');
+            }
         }
         
         // Verificar status automaticamente ao carregar a página
