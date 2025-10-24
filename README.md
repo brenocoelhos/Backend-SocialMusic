@@ -299,6 +299,111 @@ DEBUG=true
 - ✅ **Documentação** completa
 - ✅ **Pronto para produção**
 
+## 🐳 Deploy com Docker
+
+### Opção 1: Deploy no Render (Recomendado)
+
+#### Passo 1: Preparar o Repositório
+```bash
+# Certifique-se de que os arquivos Docker estão commitados
+git add Dockerfile .dockerignore
+git commit -m "Add Docker configuration"
+git push
+```
+
+#### Passo 2: Configurar no Render
+1. Acesse [render.com](https://render.com) e faça login
+2. Clique em **"New +"** → **"Web Service"**
+3. Conecte seu repositório GitHub
+4. Configure:
+   - **Name**: `socialmusic-backend`
+   - **Environment**: `Docker`
+   - **Region**: Escolha a mais próxima
+   - **Branch**: `main`
+   - **Dockerfile Path**: `Dockerfile` (padrão)
+   - **Docker Build Context Directory**: `.` (raiz do projeto)
+
+#### Passo 3: Configurar Variáveis de Ambiente
+No Render, vá em **Environment** e adicione:
+```env
+LASTFM_API_KEY=sua_chave_lastfm
+SPOTIFY_CLIENT_ID=seu_client_id
+SPOTIFY_CLIENT_SECRET=seu_client_secret
+SPOTIFY_REDIRECT_URI=https://seu-app.onrender.com/api/spotify_callback_owner.php
+DB_HOST=seu_mysql_host
+DB_NAME=sistema_auth
+DB_USER=seu_usuario
+DB_PASS=sua_senha
+DB_CHARSET=utf8mb4
+```
+
+#### Passo 4: Deploy
+- Clique em **"Create Web Service"**
+- O Render vai buildar e deployar automaticamente
+- Acesse sua aplicação em: `https://seu-app.onrender.com`
+
+### Opção 2: Desenvolvimento Local com Docker
+
+```bash
+# Build e iniciar containers
+docker-compose up -d
+
+# Acessar aplicação
+# Frontend: http://localhost:8080
+# MySQL: localhost:3306
+
+# Ver logs
+docker-compose logs -f
+
+# Parar containers
+docker-compose down
+
+# Parar e remover volumes (limpar banco)
+docker-compose down -v
+```
+
+### Opção 3: Build Manual do Docker
+
+```bash
+# Build da imagem
+docker build -t socialmusic-backend .
+
+# Executar container
+docker run -d \
+  -p 8080:80 \
+  --name socialmusic \
+  -e LASTFM_API_KEY=sua_chave \
+  -e SPOTIFY_CLIENT_ID=seu_id \
+  -e SPOTIFY_CLIENT_SECRET=seu_secret \
+  socialmusic-backend
+
+# Ver logs
+docker logs -f socialmusic
+
+# Parar container
+docker stop socialmusic
+
+# Remover container
+docker rm socialmusic
+```
+
+### 📦 Banco de Dados para Produção
+
+Para produção, recomendo usar um serviço gerenciado:
+
+- **Render Postgres/MySQL**: Gratuito (750h/mês)
+- **PlanetScale**: MySQL serverless gratuito
+- **Railway**: MySQL/Postgres com tier gratuito
+- **AWS RDS**: Opção profissional
+
+**Conectar ao banco externo:**
+```env
+DB_HOST=seu-banco.mysql.database.azure.com
+DB_NAME=sistema_auth
+DB_USER=admin
+DB_PASS=senha_segura
+```
+
 ---
 
 💡 **Dica**: Para dúvidas sobre .env, consulte o arquivo [COMO_USAR_ENV.md](COMO_USAR_ENV.md)

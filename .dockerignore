@@ -1,0 +1,38 @@
+# Arquivos Git
+.git
+.gitignore
+
+# Arquivos de ambiente (nunca incluir no build)
+.env
+
+# Arquivos temporários
+temp/spotify_owner_tokens.json
+temp/spotify_owner_state.txt
+
+# Logs
+*.log
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Node modules (caso adicione no futuro)
+node_modules
+npm-debug.log
+
+# Composer (caso use no futuro)
+vendor/
+
+# Arquivos de teste
+teste_*.html
+test_*.php
+
+# Docker
+docker-compose.override.yml
