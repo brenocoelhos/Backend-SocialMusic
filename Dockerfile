@@ -12,8 +12,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Habilitar mod_rewrite do Apache (útil para URLs amigáveis)
-RUN a2enmod rewrite
+# Habilitar mod_rewrite e mod_headers do Apache
+RUN a2enmod rewrite headers
+
+# Configurar Apache para permitir .htaccess
+RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
 
 # Copiar código para o diretório padrão do Apache
 COPY . /var/www/html/
