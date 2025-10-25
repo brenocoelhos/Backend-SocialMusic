@@ -7,7 +7,7 @@ $result = [
         'DB_HOST' => getenv('DB_HOST') ?: 'NAO DEFINIDO',
         'DB_NAME' => getenv('DB_NAME') ?: 'NAO DEFINIDO',
         'DB_USER' => getenv('DB_USER') ?: 'NAO DEFINIDO',
-        'DB_PASS_SET' => getenv('DB_PASS') ? 'SIM' : 'NAO'
+        'DB_PASS_SET' => (getenv('DB_PASS') || getenv('DB_PASSWORD')) ? 'SIM' : 'NAO'
     ]
 ];
 
