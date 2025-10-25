@@ -1,36 +1,18 @@
 <?php
-// Adicionado para exibir erros durante o desenvolvimento
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-// Headers de resposta
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// Configuração CORS
+require_once __DIR__ . '/../config/cors.php';
 
 require __DIR__ . '/../classes/SpotifyAPI.php';
 
 try {
-    // Carregar .env
-    $envFile = __DIR__ . '/../.env';
-    if (file_exists($envFile)) {
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        foreach ($lines as $line) {
-            if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
-                list($key, $value) = explode('=', $line, 2);
-                $_ENV[trim($key)] = trim(trim($value, '"'));
-            }
-        }
-    }
+    // Pega as credenciais do Spotify de variáveis de ambiente
+    $clientId = getenv('SPOTIFY_CLIENT_ID') ?: null;
+    $clientSecret = getenv('SPOTIFY_CLIENT_SECRET') ?: null;
 
-    $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? null;
-    $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? null;
-
-    //Verifica se as credenciais carregaram
+    //Verifica se as credenciais foram configuradas
     if (!$clientId || !$clientSecret) {
         http_response_code(500);
-        echo json_encode(['error' => 'As credenciais da API do Spotify não foram configuradas no arquivo .env.']);
+        echo json_encode(['error' => 'As credenciais da API do Spotify não foram configuradas.']);
         exit;
     }
 
