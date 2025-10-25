@@ -26,8 +26,13 @@ class Database {
             
             $this->conn = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch(PDOException $e) {
-
-            throw new Exception("Erro ao conectar ao banco de dados");
+            // Log do erro real para debug
+            error_log("Erro de conexão DB: " . $e->getMessage());
+            error_log("DSN usado: " . $dsn);
+            error_log("User usado: " . DB_USER);
+            
+            // Em produção, mostrar erro detalhado temporariamente para debug
+            throw new Exception("Erro ao conectar ao banco de dados: " . $e->getMessage());
         }
     }
     

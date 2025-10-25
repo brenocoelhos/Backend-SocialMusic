@@ -1,4 +1,4 @@
-<?php
+                                                                <?php
 // Teste de conexão com banco de dados
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
