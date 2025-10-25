@@ -64,21 +64,14 @@ try {
         $artistName = implode(', ', $artists);
 
         // Foto da música 
-        $imageUrl = !empty($track->album->images) ? $track->album->images[0]->url : null;
+        $imageUrl = !empty($track->album->images) ? $track->album->images[1]->url : null;
 
         $results[] = [
-            'id' => $track->id,
             'track_name' => $track->name,
             'artist_name' => $artistName,
             'image_url' => $imageUrl,
-            'spotify_url' => $track->external_urls->spotify,
-            'duration_ms' => $track->duration_ms, 
-            'release_date' => $track->album->release_date,
-            'popularity' => $track->popularity ?? 0, 
-            'explicit' => $track->explicit ?? false,  
-            'album_name' => $track->album->name ?? 'N/A', 
-            'album_type' => $track->album->album_type ?? 'N/A'
-        ]; 
+            'spotify_url' => $track->external_urls->spotify
+        ];
     }
 
     // Resultados formatados em JSON
