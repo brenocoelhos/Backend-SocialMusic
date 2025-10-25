@@ -1,7 +1,8 @@
                                                                 <?php
 // Teste de conexão com banco de dados
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Desabilita display para não atrapalhar headers
+ini_set('log_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
