@@ -1,8 +1,19 @@
 <?php
 //API de Autenticação
 
+// Habilitar exibição de erros para debug (remover em produção final)
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Não mostrar na tela
+ini_set('log_errors', 1);
+
 // Configuração CORS
-require_once __DIR__ . '/../config/cors.php';
+try {
+    require_once __DIR__ . '/../config/cors.php';
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Erro ao carregar CORS', 'erro' => $e->getMessage()]);
+    exit;
+}
 
 // Apenas POST permitido
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -11,7 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../config/database.php';
+try {
+    require_once __DIR__ . '/../config/database.php';
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Erro ao conectar ao banco', 'erro' => $e->getMessage()]);
+    exit;
+}
 
 // Inicia sessão com configurações adequadas para produção
 if (session_status() === PHP_SESSION_NONE) {
