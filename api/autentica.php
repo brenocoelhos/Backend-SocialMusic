@@ -13,11 +13,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 
-// Inicia sessão com configurações mais permissivas
+// Inicia sessão com configurações adequadas para produção
 if (session_status() === PHP_SESSION_NONE) {
+    // Detecta se está em HTTPS
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+                || $_SERVER['SERVER_PORT'] == 443
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Lax');
+    
+    // Em produção (HTTPS), use SameSite=None; Secure
+    if ($isHttps) {
+        ini_set('session.cookie_samesite', 'None');
+        ini_set('session.cookie_secure', 1);
+    } else {
+        // Em desenvolvimento (HTTP), use Lax
+        ini_set('session.cookie_samesite', 'Lax');
+    }
+    
     ini_set('session.cookie_lifetime', 3600); // 1 hora
     ini_set('session.gc_maxlifetime', 3600);
     session_name('SOCIALMUSIC_SESSION');

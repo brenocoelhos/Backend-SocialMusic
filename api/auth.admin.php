@@ -2,19 +2,31 @@
 // Configuração CORS
 require_once __DIR__ . '/../config/cors.php';
 
-// Inicia a sessão APÓS o tratamento do OPTIONS
+// Configuração da sessão adequada para produção
 if (session_status() === PHP_SESSION_NONE) {
+    // Detecta se está em HTTPS
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+                || $_SERVER['SERVER_PORT'] == 443
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Lax'); // Mudando para Lax para teste
+    
+    // Em produção (HTTPS), use SameSite=None; Secure
+    if ($isHttps) {
+        ini_set('session.cookie_samesite', 'None');
+        ini_set('session.cookie_secure', 1);
+    } else {
+        // Em desenvolvimento (HTTP), use Lax
+        ini_set('session.cookie_samesite', 'Lax');
+    }
+    
     session_start();
 }
 
 // Debug da sessão
 error_log('SESSION em auth.admin.php: ' . print_r($_SESSION, true));
-
-// Debug - Verificar estado da sessão
-error_log('Debug - Session: ' . print_r($_SESSION, true));
+error_log('HTTPS detected: ' . ($isHttps ? 'yes' : 'no'));
 
 // Verifica se o usuário está logado e se é admin
 if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['perfil']) || $_SESSION['perfil'] !== 'admin') {
