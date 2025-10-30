@@ -11,16 +11,5 @@
     RewriteRule ^ - [L]
 </IfModule>
 
-# Configurações de CORS para todas as origens (ajuste conforme necessário)
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    Header always set Access-Control-Allow-Credentials "true"
-</IfModule>
-
-# Permitir listagem de diretórios (remova se não quiser)
-Options +Indexes
-
 # Definir arquivos de índice padrão
 DirectoryIndex index.php index.html
