@@ -1,16 +1,16 @@
 # Arquivos Git
 .git
 .gitignore
+README.md
 
-# Arquivos de ambiente (nunca incluir no build)
+# Arquivos de ambiente
 .env
+.env.example
 
-# Arquivos temporários
-temp/spotify_owner_tokens.json
-temp/spotify_owner_state.txt
-
-# Logs
+# Arquivos temporários e cache
+temp/
 *.log
+*.cache
 
 # IDEs
 .vscode
@@ -18,6 +18,11 @@ temp/spotify_owner_state.txt
 *.swp
 *.swo
 *~
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
 
 # Sistema operacional
 .DS_Store
