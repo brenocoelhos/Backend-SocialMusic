@@ -22,7 +22,6 @@ session_set_cookie_params([
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-?>
 
 // Define que a saída será sempre JSON
 header("Content-Type: application/json");
