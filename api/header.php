@@ -1,22 +1,28 @@
 <?php
+/**
+ * Header para todas as requisições da API
+ * CORS é gerenciado em config/cors.php
+ */
 
-header("Access-Control-Allow-Origin: http://localhost:3000"); 
-header("Access-Control-Allow-Credentials: true"); // Permite cookies de sessão
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Requested-With");
-
-// Responde a requisições OPTIONS (preflight)
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(204); // No Content
-    exit;
-}
+// Incluir configuração de CORS
+require_once __DIR__ . '/../config/cors.php';
 
 // Define o tempo de vida da sessão (ex: 8 horas)
 ini_set('session.gc_maxlifetime', 8 * 60 * 60); // 8 horas * 60 min * 60 seg
-session_set_cookie_params(28800);
+session_set_cookie_params([
+    'lifetime' => 28800,
+    'path' => '/',
+    'domain' => '',
+    'secure' => true,      // Somente HTTPS
+    'httponly' => true,    // Não acessível via JavaScript
+    'samesite' => 'None'   // Permite cross-origin
+]);
 
 // Inicia a sessão para todas as requisições
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+?>
 
 // Define que a saída será sempre JSON
 header("Content-Type: application/json");
