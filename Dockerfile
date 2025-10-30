@@ -1,29 +1,31 @@
 # Use a imagem oficial do PHP com Apache
 FROM php:8.1-apache
 
-# Instalar extensões necessárias do PHP em uma única camada
-RUN docker-php-ext-install pdo pdo_mysql mysqli
+# Instalar extensões necessárias do PHP (isso vai ser cacheado)
+RUN docker-php-ext-install pdo pdo_mysql mysqli \
+    && a2enmod rewrite headers
 
-# Habilitar mod_rewrite do Apache
-RUN a2enmod rewrite headers
-
-# Copiar configuração do Apache
+# Copiar apenas arquivos de configuração primeiro (muda menos)
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY .htaccess /var/www/html/.htaccess
 
-# Copiar código para o diretório padrão do Apache
-COPY . /var/www/html/
+# Criar estrutura de diretórios
+RUN mkdir -p /var/www/html/temp /var/www/html/api /var/www/html/classes /var/www/html/config /var/www/html/database
 
-# Ajustar permissões
+# Copiar código (isso vai invalidar cache quando código mudar)
+COPY api/ /var/www/html/api/
+COPY classes/ /var/www/html/classes/
+COPY config/ /var/www/html/config/
+COPY database/ /var/www/html/database/
+COPY index.php /var/www/html/
+
+# Ajustar permissões de uma vez
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && mkdir -p /var/www/html/temp \
     && chmod -R 777 /var/www/html/temp
 
 # Expor porta 80
 EXPOSE 80
 
-# Configurar variável de ambiente para porta
-ENV PORT=80
-
-# Comando padrão (Apache em foreground)
+# Comando padrão
 CMD ["apache2-foreground"]

@@ -1,14 +1,18 @@
-# Arquivos Git
+# Git
 .git
 .gitignore
-README.md
 
-# Arquivos de ambiente
+# Documentação
+README.md
+*.md
+
+# Ambiente
 .env
 .env.example
 
-# Arquivos temporários e cache
-temp/
+# Temporários
+temp/*
+!temp/.gitkeep
 *.log
 *.cache
 
@@ -19,10 +23,13 @@ temp/
 *.swo
 *~
 
-# Docker
-docker-compose.yml
+# Docker (não precisa copiar)
 Dockerfile
 .dockerignore
+docker-compose.yml
+
+# SQL (já está em database/schema.sql)
+sql/
 
 # Sistema operacional
 .DS_Store
