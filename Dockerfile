@@ -5,7 +5,10 @@ FROM php:8.1-apache
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
 # Habilitar mod_rewrite do Apache
-RUN a2enmod rewrite
+RUN a2enmod rewrite headers
+
+# Copiar configuração do Apache
+COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Copiar código para o diretório padrão do Apache
 COPY . /var/www/html/
@@ -18,6 +21,9 @@ RUN chown -R www-data:www-data /var/www/html \
 
 # Expor porta 80
 EXPOSE 80
+
+# Configurar variável de ambiente para porta
+ENV PORT=80
 
 # Comando padrão (Apache em foreground)
 CMD ["apache2-foreground"]
