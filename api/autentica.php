@@ -1,206 +1,48 @@
 <?php
-//API de Autenticação
+require_once 'header.php';
+require_once 'conexao.php';
 
-$origin = 'http://localhost:3000'; 
+$dados = json_decode(file_get_contents("php://input"), true);
 
-header("Access-Control-Allow-Origin: " . $origin); 
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header('Content-Type: application/json; charset=utf-8');
-
-
-// Responde OPTIONS para CORS preflight
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+if (!$dados || empty($dados['email']) || empty($dados['senha'])) {
+    http_response_code(400); // Bad Request
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Email e senha são obrigatórios.']);
     exit;
 }
 
-// Apenas POST permitido
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Método não permitido']);
-    exit;
-}
+$email = $dados['email'];
+$senha = $dados['senha'];
 
-require_once __DIR__ . '/../config/database.php';
+$stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
+$stmt->execute([$email]);
+$usuario = $stmt->fetch();
+error_log('DEBUG LOGIN - Usuario encontrado: ' . print_r($usuario, true));
 
-// Inicia sessão com configurações mais permissivas
-if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Lax');
-    ini_set('session.cookie_lifetime', 3600); // 1 hora
-    ini_set('session.gc_maxlifetime', 3600);
-    session_name('SOCIALMUSIC_SESSION');
-    session_start();
-}
-
-// Debug - Log do início da sessão
-
-
-
-/**
- * Registra tentativa de login
- */
-function registraTentativaLogin($email, $sucesso) {
-    try {
-        $db = Database::getInstance()->getConnection();
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        
-        $stmt = $db->prepare("INSERT INTO tentativas_login (email, ip_address, sucesso) VALUES (?, ?, ?)");
-        $stmt->execute([$email, $ip, $sucesso ? 1 : 0]);
-    } catch (Exception $e) {
-
-    }
-}
-
-/**
- * Verifica bloqueio por excesso de tentativas
- */
-function verificaBloqueio($email) {
-    try {
-        $db = Database::getInstance()->getConnection();
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        
-        // Verifica tentativas nos últimos 15 minutos
-        $stmt = $db->prepare("
-            SELECT COUNT(*) as tentativas 
-            FROM tentativas_login 
-            WHERE email = ? 
-            AND ip_address = ? 
-            AND sucesso = 0 
-            AND tentativa_em > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-        ");
-        $stmt->execute([$email, $ip]);
-        $resultado = $stmt->fetch();
-        
-        return $resultado['tentativas'] >= 5;
-    } catch (Exception $e) {
-
-        return false;
-    }
-}
-
-try {
-    // Recebe dados JSON ou form data
-    $json = file_get_contents('php://input');
-    $dados = json_decode($json, true);
+// RF2 e RF5: Valida credenciais e senha com hash
+if ($usuario && password_verify($senha, $usuario['senha_hash'])) {
     
-    // Se não conseguiu decodificar JSON, tenta $_POST
-    if (!$dados && !empty($_POST)) {
-        $dados = $_POST;
-    }
-    
-    if (!$dados) {
-        throw new Exception('Dados inválidos');
-    }
-    
-    // Aceita 'email', 'usuario' ou 'username'
-    $login = $dados['email'] ?? $dados['usuario'] ?? $dados['username'] ?? '';
-    $senha = $dados['senha'] ?? '';
-    
-    if (empty($login)) {
-        throw new Exception('Email ou usuário é obrigatório');
-    }
-    
-    if (empty($senha)) {
-        throw new Exception('Senha é obrigatória');
-    }
-    
-    // Determina se é email ou username
-    $isEmail = filter_var($login, FILTER_VALIDATE_EMAIL);
-    
-    // Verifica bloqueio (usa login como identificador)
-    if (verificaBloqueio($login)) {
-        http_response_code(429);
-        echo json_encode([
-            'sucesso' => false,
-            'mensagem' => 'Muitas tentativas falhas. Tente novamente em 15 minutos.'
-        ]);
-        exit;
-    }
-    
-    // Busca usuário
-    $db = Database::getInstance()->getConnection();
-    if ($isEmail) {
-        $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE email = ?");
-    } else {
-        $stmt = $db->prepare("SELECT id, email, username, senha_hash, perfil, nome, ativo FROM usuarios WHERE username = ?");
-    }
-    $stmt->execute([$login]);
-    $usuario = $stmt->fetch();
-    
-    // Valida credenciais
-    if (!$usuario || !password_verify($senha, $usuario['senha_hash'])) {
-        registraTentativaLogin($login, false);
-        
-        http_response_code(401);
-        echo json_encode([
-            'sucesso' => false,
-            'mensagem' => 'E-mail ou senha incorretos'
-        ]);
-        exit;
-    }
-    
-    // Verifica se está ativo
-    if (!$usuario['ativo']) {
-        registraTentativaLogin($email, false);
-        
-        http_response_code(403);
-        echo json_encode([
-            'sucesso' => false,
-            'mensagem' => 'Usuário inativo. Entre em contato com o administrador.'
-        ]);
-        exit;
-    }
-    
-    // Atualiza hash se necessário (caso o algoritmo tenha mudado)
-    if (password_needs_rehash($usuario['senha_hash'], PASSWORD_DEFAULT)) {
-        $novoHash = password_hash($senha, PASSWORD_DEFAULT);
-        $stmtUpdate = $db->prepare("UPDATE usuarios SET senha_hash = ? WHERE id = ?");
-        $stmtUpdate->execute([$novoHash, $usuario['id']]);
-    }
-    
-    // Regenera ID da sessão (segurança)
+    // RF2: Regenera o ID da sessão para segurança
     session_regenerate_id(true);
-    
-    // Cria sessão
+
+    // RF2: Armazena dados na sessão
     $_SESSION['usuario_id'] = $usuario['id'];
-    $_SESSION['email'] = $usuario['email'];
-    $_SESSION['username'] = $usuario['username'];
-    $_SESSION['nome'] = $usuario['nome'];
+    $_SESSION['usuario_email'] = $usuario['email'];
     $_SESSION['perfil'] = $usuario['perfil'];
-    $_SESSION['ultima_atividade'] = time();
-    $_SESSION['ip_login'] = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    
-    // Registra sucesso
-    registraTentativaLogin($login, true);
-    
-    // Resposta de sucesso
-    $resposta = [
+
+    // Retorna os dados do usuário para o Vue (para o localStorage)
+    echo json_encode([
         'sucesso' => true,
-        'mensagem' => 'Login realizado com sucesso',
+        'mensagem' => 'Login bem-sucedido!',
         'usuario' => [
             'id' => $usuario['id'],
-            'email' => $usuario['email'],
-            'username' => $usuario['username'],
             'nome' => $usuario['nome'],
+            'email' => $usuario['email'],
             'perfil' => $usuario['perfil']
-        ],
-        'debug' => [
-            'session_id' => session_id(),
-            'session_data' => $_SESSION,
-            'usuario_db' => $usuario
         ]
-    ];
-    echo json_encode($resposta);
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode([
-        'sucesso' => false,
-        'mensagem' => $e->getMessage()
     ]);
+} else {
+    // RF5: Mensagem de erro clara
+    http_response_code(401); // Unauthorized
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Credenciais inválidas.']);
 }
 ?>
