@@ -1,19 +1,8 @@
 <?php
 // Arquivo raiz do backend - SocialMusic API
-header('Content-Type: application/json; charset=utf-8');
 
-// Define CORS headers
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
-header("Access-Control-Allow-Origin: " . $origin);
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-
-// Handle OPTIONS
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Incluir configuração de CORS centralizada
+require_once __DIR__ . '/config/cors.php';
 
 // Resposta de status da API
 $response = [
