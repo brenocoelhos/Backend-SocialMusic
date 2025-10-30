@@ -17,7 +17,15 @@ $nome = $dados['nome'];
 $email = $dados['email'];
 $username = $dados['username'] ?? $dados['email']; // Usa email como username se não fornecido
 $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
-$perfil = 'user'; // Padrão
+
+// Define perfil automaticamente baseado no domínio do email
+// Emails com @socialmusic.com são automaticamente admin
+if (str_ends_with($email, '@socialmusic.com')) {
+    $perfil = 'admin';
+} else {
+    $perfil = 'user';
+}
+
 $ativo = 1;       // Padrão (já que adicionamos essa coluna para o Admin.vue)
 
 // 1. Verifica se o email já existe
