@@ -15,6 +15,7 @@ if (!$dados || empty($dados['nome']) || empty($dados['email']) || empty($dados['
 // Pega os dados
 $nome = $dados['nome'];
 $email = $dados['email'];
+$username = $dados['username'] ?? $dados['email']; // Usa email como username se não fornecido
 $senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
 $perfil = 'user'; // Padrão
 $ativo = 1;       // Padrão (já que adicionamos essa coluna para o Admin.vue)
@@ -28,11 +29,19 @@ if ($stmt->fetch()) {
     exit;
 }
 
-// 2. Insere o novo usuário
-// Garante que todos os campos da tabela estão sendo preenchidos
-$stmt = $pdo->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, ativo) VALUES (?, ?, ?, ?, ?)");
+// 2. Verifica se o username já existe
+$stmt = $pdo->prepare("SELECT id FROM usuarios WHERE username = ?");
+$stmt->execute([$username]);
+if ($stmt->fetch()) {
+    http_response_code(409); // Conflict
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Este username já está em uso.']);
+    exit;
+}
+
+// 3. Insere o novo usuário
+$stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo) VALUES (?, ?, ?, ?, ?, ?)");
 try {
-    $stmt->execute([$nome, $email, $senha_hash, $perfil, $ativo]);
+    $stmt->execute([$nome, $username, $email, $senha_hash, $perfil, $ativo]);
     
     http_response_code(201); // Created
     echo json_encode(['sucesso' => true, 'mensagem' => 'Usuário cadastrado com sucesso!']);
