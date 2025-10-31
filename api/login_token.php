@@ -35,6 +35,16 @@ try {
     $result = $authManager->login($usuario, $senha);
     
     if ($result) {
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Salva os dados na SESSÃO (igual o autentica.php faz)
+        $_SESSION['usuario_id'] = $result['user']['id'];
+        $_SESSION['usuario_email'] = $result['user']['email'];
+        $_SESSION['perfil'] = $result['user']['perfil'];
+
         // Definir cookie com o token
         setcookie('auth_token', $result['token'], [
             'expires' => time() + 3600,
