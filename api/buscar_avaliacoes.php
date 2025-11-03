@@ -26,7 +26,7 @@ try{
     //Buscar total e média das avaliações
     $stmt_stats = $pdo->prepare("SELECT COUNT(*) AS total_avaliacoes, AVG(nota) AS media_notas FROM avaliacoes WHERE musica_id = ?");
     $stmt_stats->execute([$musica_id_local]);
-    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+    $stats_raw = $stmt_stats->fetch(PDO::FETCH_ASSOC);
 
     $stats = [
         'total' => (int) $stats_raw['total_avaliacoes'],
@@ -38,7 +38,7 @@ try{
                                             a.id, a.nota, a.titulo, a.comentario, a.data_criacao, 
                                             u.nome AS usuario_nome, 
                                             u.username as usuario_username, 
-                                            u.foto_perfil AS usuario_avatar_url
+                                            u.foto_perfil AS usuario_avatar
                                             FROM avaliacoes a 
                                             JOIN usuarios u ON a.usuario_id = u.id 
                                             WHERE a.musica_id = ? 
