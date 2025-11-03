@@ -1,6 +1,6 @@
 <?php
 require_once 'header.php';
-require_once 'conexao.php'; // Como o seu salvar_avaliacao.php faz
+require_once 'conexao.php';
 
 $utilizador_logado_id = $_SESSION['usuario_id'] ?? null;
 if (!$utilizador_logado_id) {
@@ -38,47 +38,57 @@ try {
         }
     }
 
-    // --- NOVA ALTERAÇÃO AQUI ---
-    // 3. Contar Seguidores e Seguindo (usando a tabela 'seguidores')
-    
-    // Quantas pessoas ESTE PERFIL (perfil_id) está a seguir
+    // 3. Contar Seguidores e Seguindo
     $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = ?");
     $stmt_following->execute([$perfil_id]);
     $following_count = $stmt_following->fetchColumn();
 
-    // Quantas pessoas ESTÃO A SEGUIR ESTE PERFIL (perfil_id)
     $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = ?");
     $stmt_followers->execute([$perfil_id]);
     $followers_count = $stmt_followers->fetchColumn();
 
-    // Adiciona as contagens ao array do perfil
     $perfil['following_count'] = $following_count;
     $perfil['followers_count'] = $followers_count;
-    // --- FIM DA NOVA ALTERAÇÃO ---
 
 
-    // 4. Buscar as avaliações (como já fazia)
+    // 4. Buscar as avaliações
     $stmt_avaliacoes = $pdo->prepare("
-        SELECT a.id, a.titulo, a.comentario, m.titulo as musica_titulo, 
-               m.artista as musica_artista, m.capa_url as musica_capa
+        SELECT a.id, a.nota, a.titulo, a.comentario,
+            m.titulo as musica_titulo, 
+            m.artista as musica_artista, 
+            m.capa_url as musica_capa
         FROM avaliacoes a
         JOIN musicas m ON a.musica_id = m.id
         WHERE a.usuario_id = ?
-        ORDER BY a.data_criacao DESC LIMIT 10
+        ORDER BY a.data_criacao DESC
+        LIMIT 10
     ");
     $stmt_avaliacoes->execute([$perfil_id]);
     $avaliacoes_raw = $stmt_avaliacoes->fetchAll();
     
+    // --- ESTA É A CORREÇÃO ---
+    // O loop agora está preenchido
     $avaliacoes_formatadas = [];
     foreach ($avaliacoes_raw as $row) {
-         // ... formatação das avaliações ...
+         $avaliacoes_formatadas[] = [
+            'musica' => [
+                'titulo' => $row['musica_titulo'],
+                'artista' => $row['musica_artista'],
+                'capa' => $row['musica_capa']
+            ],
+            'nota' => (float)$row['nota'],
+            'titulo' => $row['titulo'],
+            'comentario' => $row['comentario'],
+            'likes' => 0 // Mockado
+        ];
     }
+    // --- FIM DA CORREÇÃO ---
 
     // 5. Enviar a resposta completa
     echo json_encode([
         'sucesso' => true,
-        'perfil' => $perfil, // O $perfil agora inclui as contagens
-        'avaliacoes' => $avaliacoes_formatadas,
+        'perfil' => $perfil,
+        'avaliacoes' => $avaliacoes_formatadas, // Isto agora terá dados
         'is_self' => $is_self,
         'is_following' => $is_following
     ]);
