@@ -50,7 +50,7 @@ try {
             'expires' => time() + 3600,
             'path' => '/',
             'domain' => '',
-            'secure' => false, // Para localhost
+            'secure' => true, // HTTPS
             'httponly' => true,
             'samesite' => 'Lax'
         ]);
