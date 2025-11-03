@@ -49,10 +49,17 @@ try {
         $imageUrl = !empty($track->album->images) ? $track->album->images[1]->url : null;
 
         $results[] = [
+            'id' => $track->id, 
             'track_name' => $track->name,
             'artist_name' => $artistName,
             'image_url' => $imageUrl,
-            'spotify_url' => $track->external_urls->spotify
+            'spotify_url' => $track->external_urls->spotify,
+            'duration_ms' => $track->duration_ms,
+            'release_date' => $track->album->release_date,
+            'popularity' => $track->popularity,
+            'explicit' => $track->explicit,
+            'album_name' => $track->album->name,
+            'album_type' => $track->album->album_type
         ];
     }
 
