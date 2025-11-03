@@ -13,7 +13,7 @@ $perfil_id = $_GET['id'] ?? $utilizador_logado_id;
 
 try {
     // 1. Buscar os dados do perfil
-    $stmt_perfil = $pdo->prepare("SELECT id, nome, email FROM usuarios WHERE id = ?");
+    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username FROM usuarios WHERE id = ?");
     $stmt_perfil->execute([$perfil_id]);
     $perfil = $stmt_perfil->fetch();
 
