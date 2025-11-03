@@ -1,0 +1,58 @@
+<?php
+require_once 'header.php'; // Session_start()
+require_once 'conexao.php'; // conexão banco de dados
+
+// Pegar o spotify_id da URL
+$spotify_id = $_GET['spotify_id'] ?? null;
+if (!$spotify_id) {
+    http_response_code(400);
+    echo json_encode(['erro' => 'spotify_id é obrigatório.']);
+    exit;
+}
+
+try{
+    // Encontrar o ID local da música
+    $stmt_musica = $pdo->prepare("SELECT id FROM musicas WHERE spotify_id = ?");
+    $stmt_musica->execute([$spotify_id]);
+    $musica = $stmt_musica->fetch();
+
+    if (!$musica) {
+        // Música não existe, logo não há avaliações
+        echo json_encode(['stats' => ['total' => 0, 'media' => 0.0],'avaliacoes' => []]);
+        exit;
+    }
+    $musica_id_local = $musica['id'];
+
+    //Buscar total e média das avaliações
+    $stmt_stats = $pdo->prepare("SELECT COUNT(*) AS total_avaliacoes, AVG(nota) AS media_notas FROM avaliacoes WHERE musica_id = ?");
+    $stmt_stats->execute([$musica_id_local]);
+    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+
+    $stats = [
+        'total' => (int) $stats_raw['total_avaliacoes'],
+        'media' => $stats_raw['media_notas'] ? round((float) $stats_raw['media_notas'], 1) : 0.0
+    ];
+
+    //Buscar a lista de avaliações junto com a tabela de usuários
+    $stmt_avaliacoes = $pdo->prepare("SELECT 
+                                            a.id, a.nota, a.titulo, a.comentario, a.data_criacao, 
+                                            u.nome AS usuario_nome, 
+                                            u.username as usuario_username, 
+                                            u.foto_perfil AS usuario_avatar_url
+                                            FROM avaliacoes a 
+                                            JOIN usuarios u ON a.usuario_id = u.id 
+                                            WHERE a.musica_id = ? 
+                                            ORDER BY a.id DESC");
+    $stmt_avaliacoes->execute([$musica_id_local]);
+    $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
+
+    // Retornar os dados
+    echo json_encode(['stats' => $stats, 'avaliacoes' => $avaliacoes]);
+
+} catch (Exception $e) {
+    http_response_code(500);
+    error_log("Erro ao buscar_avaliacoes.php: " . $e->getMessage());
+    echo json_encode(['erro' => 'Erro interno do servidor: ' . $e->getMessage()]);
+}
+
+?>
