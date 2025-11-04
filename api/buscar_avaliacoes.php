@@ -49,7 +49,7 @@ try{
             u.nome as usuario_nome,
             u.username as usuario_username,
             u.foto_perfil as usuario_avatar,
-            CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following
+            CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
             (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
         FROM avaliacoes a
