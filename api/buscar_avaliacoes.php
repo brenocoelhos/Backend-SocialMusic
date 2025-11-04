@@ -58,14 +58,21 @@ try{
         LIMIT :limit OFFSET :offset";
 
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
-    $stmt_avaliacoes->bindValue(1, $usuario_logado_id, PDO::PARAM_INT);
+    
+    // Adiciona uma verificação para $usuario_logado_id
+    if ($usuario_logado_id === null) {
+        $stmt_avaliacoes->bindValue(1, null, PDO::PARAM_NULL);
+    } else {
+        $stmt_avaliacoes->bindValue(1, $usuario_logado_id, PDO::PARAM_INT);
+    }
+    
     $stmt_avaliacoes->bindValue(2, $musica_id_local, PDO::PARAM_INT);
     $stmt_avaliacoes->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT);
-    
+    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT);  
+      
     $stmt_avaliacoes->execute();
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Retornar os dados
     echo json_encode(['stats' => $stats, 'avaliacoes' => $avaliacoes]);
 
