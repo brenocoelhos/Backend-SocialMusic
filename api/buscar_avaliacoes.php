@@ -41,7 +41,7 @@ try{
         'media' => $stats_raw['media_notas'] ? round((float) $stats_raw['media_notas'], 1) : 0.0
     ];
 
-    //Buscar a lista de avaliações com informações do usuário e curtidas 
+    //Buscar a lista de avaliações com informações do usuário e curtidas
     $sql_avaliacoes = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
@@ -57,7 +57,7 @@ try{
         LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id 
         WHERE a.musica_id = :musica_id
         ORDER BY a.data_criacao DESC
-        LIMIT :limit OFFSET :offset";
+        LIMIT $limit OFFSET $offset";
     
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
     
@@ -68,10 +68,7 @@ try{
         $stmt_avaliacoes->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
     }
     
-    // Bind dos outros valores NOMEADOS
     $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT); 
-    $stmt_avaliacoes->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT); 
     
     $stmt_avaliacoes->execute();
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
