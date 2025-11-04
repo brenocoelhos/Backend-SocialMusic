@@ -52,27 +52,27 @@ try{
             CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
-        LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = ? 
-        WHERE a.musica_id = ?
+        LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id 
+        WHERE a.musica_id = :musica_id
         ORDER BY a.data_criacao DESC
         LIMIT :limit OFFSET :offset";
 
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
     
-    // Adiciona uma verificação para $usuario_logado_id
+// Adiciona uma verificação para $usuario_logado_id
     if ($usuario_logado_id === null) {
-        $stmt_avaliacoes->bindValue(1, null, PDO::PARAM_NULL);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
     } else {
-        $stmt_avaliacoes->bindValue(1, $usuario_logado_id, PDO::PARAM_INT);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
     }
     
-    $stmt_avaliacoes->bindValue(2, $musica_id_local, PDO::PARAM_INT);
+    // Bind dos outros valores nomeados
+    $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT);
     $stmt_avaliacoes->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT);  
-      
+    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT); 
+    
     $stmt_avaliacoes->execute();
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
-
     // Retornar os dados
     echo json_encode(['stats' => $stats, 'avaliacoes' => $avaliacoes]);
 
