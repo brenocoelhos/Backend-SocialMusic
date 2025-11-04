@@ -8,7 +8,7 @@ $usuario_logado_id = $_SESSION['usuario_id'] ?? null;
 $spotify_id = $_GET['spotify_id'] ?? null;
 
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5; // Número de avaliações por página
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 3; // Número de avaliações por página
 $offset = ($page - 1) * $limit;
 
 
