@@ -50,6 +50,8 @@ try{
             u.username as usuario_username,
             u.foto_perfil as usuario_avatar,
             CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following
+            (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
+            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
         LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id 
@@ -73,6 +75,13 @@ try{
     
     $stmt_avaliacoes->execute();
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
+
+    // Mapeia os valores booleanos para true/false
+    foreach ($avaliacoes as $key => $review){
+        $avaliacoes[$key]['is_following'] = (bool)$review['is_following'];
+        $avaliacoes[$key]['usuario_curtiu'] = (bool)$review['usuario_curtiu'];
+    }
+
     // Retornar os dados
     echo json_encode(['stats' => $stats, 'avaliacoes' => $avaliacoes]);
 
