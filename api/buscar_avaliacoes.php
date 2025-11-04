@@ -4,9 +4,14 @@ require_once 'conexao.php'; // conexão banco de dados
 
 // Pega o ID do usuário logado (pode ser null se não estiver logado)
 $usuario_logado_id = $_SESSION['usuario_id'] ?? null;
-
 // Pegar o spotify_id da URL
 $spotify_id = $_GET['spotify_id'] ?? null;
+
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5; // Número de avaliações por página
+$offset = ($page - 1) * $limit;
+
+
 if (!$spotify_id) {
     http_response_code(400);
     echo json_encode(['erro' => 'spotify_id é obrigatório.']);
@@ -36,7 +41,7 @@ try{
         'media' => $stats_raw['media_notas'] ? round((float) $stats_raw['media_notas'], 1) : 0.0
     ];
 
-    //Buscar a lista de avaliações junto com a tabela de usuários
+    //Buscar a lista de avaliações junto com a tabela de usuários e seguidores (com paginação)
     $sql_avaliacoes = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
@@ -49,12 +54,18 @@ try{
         JOIN usuarios u ON a.usuario_id = u.id
         LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = ? 
         WHERE a.musica_id = ?
-        ORDER BY a.data_criacao DESC";
-        
-    $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
-    $stmt_avaliacoes->execute([$usuario_logado_id, $musica_id_local]);    
-    $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
+        ORDER BY a.data_criacao DESC
+        LIMIT :limit OFFSET :offset";
 
+    $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
+    $stmt_avaliacoes->bindValue(1, $usuario_logado_id, PDO::PARAM_INT);
+    $stmt_avaliacoes->bindValue(2, $musica_id_local, PDO::PARAM_INT);
+    $stmt_avaliacoes->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT);
+    
+    $stmt_avaliacoes->execute();
+    $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
+    
     // Retornar os dados
     echo json_encode(['stats' => $stats, 'avaliacoes' => $avaliacoes]);
 
