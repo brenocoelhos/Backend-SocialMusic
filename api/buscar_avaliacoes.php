@@ -20,8 +20,8 @@ if (!$spotify_id) {
 
 try{
     // Encontrar o ID local da música
-    $stmt_musica = $pdo->prepare("SELECT id FROM musicas WHERE spotify_id = ?");
-    $stmt_musica->execute([$spotify_id]);
+    $stmt_musica = $pdo->prepare("SELECT id FROM musicas WHERE spotify_id = :spotify_id");
+    $stmt_musica->execute([':spotify_id' => $spotify_id]);
     $musica = $stmt_musica->fetch();
 
     if (!$musica) {
@@ -32,8 +32,8 @@ try{
     $musica_id_local = $musica['id'];
 
     //Buscar total e média das avaliações
-    $stmt_stats = $pdo->prepare("SELECT COUNT(*) AS total_avaliacoes, AVG(nota) AS media_notas FROM avaliacoes WHERE musica_id = ?");
-    $stmt_stats->execute([$musica_id_local]);
+    $stmt_stats = $pdo->prepare("SELECT COUNT(*) AS total_avaliacoes, AVG(nota) AS media_notas FROM avaliacoes WHERE musica_id = :musica_id");
+    $stmt_stats->execute([':musica_id' => $musica_id_local]);
     $stats_raw = $stmt_stats->fetch(PDO::FETCH_ASSOC);
 
     $stats = [
@@ -41,7 +41,7 @@ try{
         'media' => $stats_raw['media_notas'] ? round((float) $stats_raw['media_notas'], 1) : 0.0
     ];
 
-    //Buscar a lista de avaliações junto com a tabela de usuários e seguidores (com paginação)
+    //Buscar a lista de avaliações com informações do usuário e curtidas 
     $sql_avaliacoes = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
@@ -58,18 +58,18 @@ try{
         WHERE a.musica_id = :musica_id
         ORDER BY a.data_criacao DESC
         LIMIT :limit OFFSET :offset";
-
+    
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
     
-// Adiciona uma verificação para $usuario_logado_id
+    // Adiciona uma verificação para $usuario_logado_id
     if ($usuario_logado_id === null) {
         $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
     } else {
         $stmt_avaliacoes->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
     }
     
-    // Bind dos outros valores nomeados
-    $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT);
+    // Bind dos outros valores NOMEADOS
+    $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT); 
     $stmt_avaliacoes->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt_avaliacoes->bindValue(':offset', $offset, PDO::PARAM_INT); 
     
@@ -90,5 +90,4 @@ try{
     error_log("Erro ao buscar_avaliacoes.php: " . $e->getMessage());
     echo json_encode(['erro' => 'Erro interno do servidor: ' . $e->getMessage()]);
 }
-
 ?>
