@@ -21,7 +21,14 @@ if (!$spotify_id) {
 try{
     // Encontrar o ID local da música
     $stmt_musica = $pdo->prepare("SELECT id FROM musicas WHERE spotify_id = :spotify_id");
+    // Log e execução
+    error_log('buscar_avaliacoes.php - Executando stmt_musica com spotify_id=' . var_export($spotify_id, true));
     $stmt_musica->execute([':spotify_id' => $spotify_id]);
+    $err = $stmt_musica->errorInfo();
+    if ($stmt_musica->errorCode() !== '00000') {
+        error_log('buscar_avaliacoes.php - Erro stmt_musica: ' . implode(' | ', $err));
+        throw new Exception('Erro na consulta de música');
+    }
     $musica = $stmt_musica->fetch();
 
     if (!$musica) {
@@ -33,7 +40,13 @@ try{
 
     //Buscar total e média das avaliações
     $stmt_stats = $pdo->prepare("SELECT COUNT(*) AS total_avaliacoes, AVG(nota) AS media_notas FROM avaliacoes WHERE musica_id = :musica_id");
+    error_log('buscar_avaliacoes.php - Executando stmt_stats com musica_id=' . var_export($musica_id_local, true));
     $stmt_stats->execute([':musica_id' => $musica_id_local]);
+    $err = $stmt_stats->errorInfo();
+    if ($stmt_stats->errorCode() !== '00000') {
+        error_log('buscar_avaliacoes.php - Erro stmt_stats: ' . implode(' | ', $err));
+        throw new Exception('Erro na consulta de estatísticas');
+    }
     $stats_raw = $stmt_stats->fetch(PDO::FETCH_ASSOC);
 
     $stats = [
@@ -42,7 +55,7 @@ try{
     ];
 
     //Buscar a lista de avaliações com informações do usuário e curtidas
-    $sql_avaliacoes = "
+$sql_avaliacoes = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
             u.id as usuario_id, 
@@ -57,20 +70,32 @@ try{
         LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id 
         WHERE a.musica_id = :musica_id
         ORDER BY a.data_criacao DESC
-        LIMIT $limit OFFSET $offset";
-    
+        LIMIT $limit OFFSET $offset"; 
+
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
-    
+
     // Adiciona uma verificação para $usuario_logado_id
     if ($usuario_logado_id === null) {
         $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
     } else {
         $stmt_avaliacoes->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
     }
-    
-    $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT); 
-    
+
+    $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT);
+
+    // Garante que limit/offset sejam inteiros ao interpolar
+    $limit = (int) $limit;
+    $offset = (int) $offset;
+
+    error_log('buscar_avaliacoes.php - Executando stmt_avaliacoes. musica_id=' . $musica_id_local . ' limit=' . $limit . ' offset=' . $offset . ' usuario_logado_id=' . var_export($usuario_logado_id, true));
+
     $stmt_avaliacoes->execute();
+    $err = $stmt_avaliacoes->errorInfo();
+    if ($stmt_avaliacoes->errorCode() !== '00000') {
+        error_log('buscar_avaliacoes.php - Erro stmt_avaliacoes: ' . implode(' | ', $err));
+        throw new Exception('Erro na consulta de avaliações');
+    }
+
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
 
     // Mapeia os valores booleanos para true/false
