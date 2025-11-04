@@ -2,6 +2,9 @@
 require_once 'header.php'; // Session_start()
 require_once 'conexao.php'; // conexão banco de dados
 
+// Pega o ID do usuário logado (pode ser null se não estiver logado)
+$usuario_logado_id = $_SESSION['usuario_id'] ?? null;
+
 // Pegar o spotify_id da URL
 $spotify_id = $_GET['spotify_id'] ?? null;
 if (!$spotify_id) {
@@ -34,16 +37,22 @@ try{
     ];
 
     //Buscar a lista de avaliações junto com a tabela de usuários
-    $stmt_avaliacoes = $pdo->prepare("SELECT 
-                                            a.id, a.nota, a.titulo, a.comentario, a.data_criacao, 
-                                            u.nome AS usuario_nome, 
-                                            u.username as usuario_username, 
-                                            u.foto_perfil AS usuario_avatar
-                                            FROM avaliacoes a 
-                                            JOIN usuarios u ON a.usuario_id = u.id 
-                                            WHERE a.musica_id = ? 
-                                            ORDER BY a.id DESC");
-    $stmt_avaliacoes->execute([$musica_id_local]);
+    $sql_avaliacoes = "
+        SELECT 
+            a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
+            u.id as usuario_id, 
+            u.nome as usuario_nome,
+            u.username as usuario_username,
+            u.foto_perfil as usuario_avatar,
+            CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following
+        FROM avaliacoes a
+        JOIN usuarios u ON a.usuario_id = u.id
+        LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = ? 
+        WHERE a.musica_id = ?
+        ORDER BY a.data_criacao DESC";
+        
+    $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
+    $stmt_avaliacoes->execute([$usuario_logado_id, $musica_id_local]);    
     $avaliacoes = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
 
     // Retornar os dados
