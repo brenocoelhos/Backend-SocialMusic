@@ -64,21 +64,25 @@ $sql_avaliacoes = "
             u.foto_perfil as usuario_avatar,
             CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
-            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
+            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id_exists)) AS usuario_curtiu
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
-        LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id 
+        LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id_left 
         WHERE a.musica_id = :musica_id
         ORDER BY a.data_criacao DESC
         LIMIT $limit OFFSET $offset"; 
 
     $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
 
+
     // Adiciona uma verificação para $usuario_logado_id
+    // Dois placeholders diferentes (:usuario_logado_id_left e :usuario_logado_id_exists)
     if ($usuario_logado_id === null) {
-        $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_left', null, PDO::PARAM_NULL);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_exists', null, PDO::PARAM_NULL);
     } else {
-        $stmt_avaliacoes->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_left', $usuario_logado_id, PDO::PARAM_INT);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_exists', $usuario_logado_id, PDO::PARAM_INT);
     }
 
     $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT);
