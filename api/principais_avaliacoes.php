@@ -3,7 +3,6 @@ require_once 'header.php'; // Session_start()
 require_once 'conexao.php'; // conexão banco de dados
 
 $usuario_id = $_SESSION['usuario_id'] ?? null;
-
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 3; // Número de avaliações principais a retornar
 
 try{
@@ -18,11 +17,11 @@ try{
             m.capa_url AS musica_capa,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
             (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu,
-            (EXISTS(SELECT 1 FROM seguidores s WHERE s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id)) AS usuario_segue
+            (EXISTS(SELECT 1 FROM seguidores s WHERE s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id)) AS is_following
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
-        JOIN musicas m ON a,musica_id = m.id
-        ORDER BY a.nota DESC, a.data_criacao DESC
+        JOIN musicas m ON a.musica_id = m.id
+        ORDER BY total_curtidas DESC, a.data_criacao DESC
         LIMIT :limit";
 
         $stmt = $pdo->prepare($sql);
@@ -39,7 +38,7 @@ try{
 
     // Formatar as avaliações para o JSON de resposta
     $avaliacoes_formatadas = [];
-    foreach ($results_flat as $row) {
+    foreach ($avaliacoes as $row) {
         $avaliacoes_formatadas[] = [
             'id' => $row['id'],
             'nota' => (float)$row['nota'],
