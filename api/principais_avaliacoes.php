@@ -16,8 +16,8 @@ try{
             m.artista AS musica_artista,
             m.capa_url AS musica_capa,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
-            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu,
-            (EXISTS(SELECT 1 FROM seguidores s WHERE s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id)) AS is_following
+            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id_curtidas)) AS usuario_curtiu,
+            (EXISTS(SELECT 1 FROM seguidores s WHERE s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id_seguidores)) AS is_following
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
         JOIN musicas m ON a.musica_id = m.id
@@ -27,9 +27,11 @@ try{
         $stmt = $pdo->prepare($sql);
 
         if ($usuario_id === null) {
-            $stmt->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
+            $stmt->bindValue(':usuario_logado_id_curtidas', null, PDO::PARAM_NULL);
+            $stmt->bindValue(':usuario_logado_id_seguidores', null, PDO::PARAM_NULL);
         } else {
-            $stmt->bindValue(':usuario_logado_id', $usuario_id, PDO::PARAM_INT);
+            $stmt->bindValue(':usuario_logado_id_curtidas', $usuario_id, PDO::PARAM_INT);
+            $stmt->bindValue(':usuario_logado_id_seguidores', $usuario_id, PDO::PARAM_INT);
         }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 
