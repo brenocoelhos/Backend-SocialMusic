@@ -14,8 +14,8 @@ try {
 
     // Verifica se o usuário logado segue alguém
     if ($usuario_logado_id) {
-        $stmt_check = $pdo->prepare("SELECT 1 FROM seguidores WHERE seguidor_id = ? LIMIT 1");
-        $stmt_check->execute([$usuario_logado_id]);
+        $stmt_check = $pdo->prepare("SELECT 1 FROM seguidores WHERE seguidor_id = :usuario_id LIMIT 1");
+        $stmt_check->execute([':usuario_id' => $usuario_logado_id]);
         $isFollowingAnyone = $stmt_check->fetchColumn();
     }
     
@@ -67,8 +67,7 @@ try {
                 AND s_out.seguidor_id IS NULL 
             GROUP BY u.id
             ORDER BY total_seguidores DESC
-            LIMIT :limit
-        ";
+            LIMIT :limit";
 
         $stmt = $pdo->prepare($sql);
         if ($usuario_logado_id === null) {
@@ -84,6 +83,32 @@ try {
 
     $stmt->execute();
     $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($usuarios) && $isFollowingAnyone) {
+        $sql = "
+            SELECT 
+                u.id, 
+                u.nome, 
+                u.username,
+                u.foto_perfil AS avatar,
+                COUNT(s_in.seguidor_id) as total_seguidores
+            FROM usuarios u
+            LEFT JOIN seguidores s_in ON u.id = s_in.seguido_id
+            LEFT JOIN seguidores s_out ON u.id = s_out.seguido_id AND s_out.seguidor_id = :usuario_logado_id
+            WHERE 
+                u.id != :usuario_logado_id_where
+                AND s_out.seguidor_id IS NULL 
+            GROUP BY u.id
+            ORDER BY total_seguidores DESC
+            LIMIT :limit";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':usuario_logado_id', $usuario_logado_id, PDO::PARAM_INT);
+        $stmt->bindValue(':usuario_logado_id_where', $usuario_logado_id, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     echo json_encode(['sucesso' => true, 'usuarios' => $usuarios]);
 
