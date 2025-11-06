@@ -11,20 +11,20 @@ try {
             m.id,
             m.titulo,
             m.artista,
-            m.capa_url
-            AVG(a.nota) AS media_nota
+            m.capa_url,
+            AVG(a.nota) AS media_nota,
             COUNT(a.id) AS total_avaliacoes
         FROM musicas m
         JOIN avaliacoes a ON m.id = a.musica_id
-        GROUP BY m.id
+        GROUP BY m.id, m.titulo, m.artista, m.capa_url
         ORDER BY media_nota DESC
         LIMIT :limit";
 
     $stmt = $pdo->prepare($sql);
 
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
     $stmt->execute();
-    
+
     $musicas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Arredondar a média das notas
