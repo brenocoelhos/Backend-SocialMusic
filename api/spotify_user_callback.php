@@ -19,13 +19,14 @@ $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? '';
 $frontendUrl = $_ENV['FRONTEND_URL'] ?? 'http://localhost:3000';
 
 if (empty($clientId) || empty($clientSecret)) {
-    die('Erro: Credenciais do Spotify não configuradas');
+    header('Location: ' . $frontendUrl . '?error=' . urlencode('Credenciais do Spotify não configuradas'));
+    exit;
 }
 
 // Verificar se recebeu o código de autorização
 if (!isset($_GET['code']) || !isset($_GET['state'])) {
     $error = $_GET['error'] ?? 'Autorização negada';
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode($error));
+    header('Location: ' . $frontendUrl . '?error=' . urlencode($error));
     exit;
 }
 
@@ -33,15 +34,15 @@ $code = $_GET['code'];
 $state = $_GET['state'];
 
 // Verificar state por segurança
-$stateFile = __DIR__ . '/../temp/spotify_user_state_' . $state . '.txt';
-if (!file_exists($stateFile)) {
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode('State inválido'));
+$savedState = file_exists(__DIR__ . '/../temp/spotify_user_state.txt') ? 
+              file_get_contents(__DIR__ . '/../temp/spotify_user_state.txt') : '';
+
+if ($state !== $savedState) {
+    header('Location: ' . $frontendUrl . '?error=' . urlencode('State inválido'));
     exit;
 }
 
-// Remover arquivo de state (uso único)
-unlink($stateFile);
-
+// Definir redirect URI (mesmo usado na autorização)
 $redirectUri = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 $redirectUri = strtok($redirectUri, '?'); // Remove query parameters
 
@@ -62,19 +63,13 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 $response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
-
-if ($httpCode !== 200) {
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode('Erro ao obter token do Spotify'));
-    exit;
-}
 
 $tokenData = json_decode($response, true);
 
 if (!isset($tokenData['access_token'])) {
-    $error = $tokenData['error_description'] ?? 'Erro desconhecido ao obter token';
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode($error));
+    $error = $tokenData['error_description'] ?? 'Erro ao obter token';
+    header('Location: ' . $frontendUrl . '?error=' . urlencode($error));
     exit;
 }
 
@@ -87,40 +82,24 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 $userResponse = curl_exec($ch);
-$userHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
-
-if ($userHttpCode !== 200) {
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode('Erro ao obter dados do usuário'));
-    exit;
-}
 
 $userData = json_decode($userResponse, true);
 
 if (!$userData || !isset($userData['email'])) {
-    header('Location: ' . $frontendUrl . '/spotify-register?error=' . urlencode('Email não disponível na conta Spotify'));
+    header('Location: ' . $frontendUrl . '?error=' . urlencode('Email não disponível na conta Spotify'));
     exit;
 }
 
-// Extrair dados do usuário
-$spotifyData = [
+// Redirecionar para o frontend com os dados
+$queryParams = http_build_query([
     'email' => $userData['email'],
     'nome' => $userData['display_name'] ?? 'Usuário Spotify',
     'spotify_id' => $userData['id'],
-    'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : null,
-    'pais' => $userData['country'] ?? null,
-    'seguidores' => $userData['followers']['total'] ?? 0
-];
-
-// Redirecionar para o frontend com os dados
-$queryParams = http_build_query([
-    'email' => $spotifyData['email'],
-    'nome' => $spotifyData['nome'],
-    'spotify_id' => $spotifyData['spotify_id'],
-    'imagem' => $spotifyData['imagem'] ?? '',
+    'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : '',
     'success' => '1'
 ]);
 
-header('Location: ' . $frontendUrl . '/spotify-register?' . $queryParams);
+header('Location: ' . $frontendUrl . '?' . $queryParams);
 exit;
 ?>
