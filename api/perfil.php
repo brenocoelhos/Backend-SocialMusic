@@ -12,7 +12,7 @@ if (!$utilizador_logado_id) {
 $perfil_id = $_GET['id'] ?? $utilizador_logado_id;
 
 try {
-    
+    // 1. Buscar os dados do perfil (incluindo 'generos' e 'avatar_url')
     $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, avatar_url, generos FROM usuarios WHERE id = ?");
     $stmt_perfil->execute([$perfil_id]);
     $perfil = $stmt_perfil->fetch();
@@ -23,14 +23,13 @@ try {
         exit;
     }
     
-    
     if (empty($perfil['avatar_url'])) {
         $perfil['avatar'] = 'https://i.pravatar.cc/150?u=' . $perfil['id'];
     } else {
         $perfil['avatar'] = $perfil['avatar_url'];
     }
 
-    
+    // 2. Verificar o estado "Seguir"
     $is_self = ($utilizador_logado_id == $perfil_id);
     $is_following = false;
     if (!$is_self) {
@@ -39,7 +38,7 @@ try {
         $is_following = (bool) $stmt_follow->fetch();
     }
 
-    
+    // 3. Contar Seguidores e Seguindo
     $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = ?");
     $stmt_following->execute([$perfil_id]);
     $perfil['following_count'] = $stmt_following->fetchColumn();
@@ -49,38 +48,17 @@ try {
     $perfil['followers_count'] = $stmt_followers->fetchColumn();
 
 
-    
-    $stmt_avaliacoes = $pdo->prepare("
-        SELECT a.id, a.nota, a.titulo, a.comentario,
-               m.titulo as musica_titulo, m.artista as musica_artista, m.capa_url as musica_capa
-        FROM avaliacoes a
-        JOIN musicas m ON a.musica_id = m.id
-        WHERE a.usuario_id = ?
-        ORDER BY a.data_criacao DESC LIMIT 10
-    ");
-    $stmt_avaliacoes->execute([$perfil_id]);
-    $avaliacoes_raw = $stmt_avaliacoes->fetchAll();
-    
-    $avaliacoes_formatadas = [];
-    foreach ($avaliacoes_raw as $row) {
-         $avaliacoes_formatadas[] = [
-            'musica' => [
-                'titulo' => $row['musica_titulo'],
-                'artista' => $row['musica_artista'],
-                'capa' => $row['musica_capa']
-            ],
-            'nota' => (float)$row['nota'],
-            'titulo' => $row['titulo'],
-            'comentario' => $row['comentario'],
-            'likes' => 0
-        ];
-    }
+  
+    $stmt_reviews_count = $pdo->prepare("SELECT COUNT(*) FROM avaliacoes WHERE usuario_id = ?");
+    $stmt_reviews_count->execute([$perfil_id]);
+    $perfil['total_avaliacoes'] = $stmt_reviews_count->fetchColumn();
+ 
 
     
+    // 5. Enviar a resposta (SEM a lista de avaliações)
     echo json_encode([
         'sucesso' => true,
         'perfil' => $perfil, 
-        'avaliacoes' => $avaliacoes_formatadas,
         'is_self' => $is_self,
         'is_following' => $is_following
     ]);
