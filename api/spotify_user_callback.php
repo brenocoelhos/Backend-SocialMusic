@@ -43,6 +43,10 @@ if ($state !== $savedState) {
     exit;
 }
 
+// Recuperar o mode (login ou register)
+$mode = file_exists(__DIR__ . '/../temp/spotify_user_mode.txt') ? 
+        file_get_contents(__DIR__ . '/../temp/spotify_user_mode.txt') : 'register';
+
 // Trocar code por token
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token');
@@ -88,15 +92,74 @@ if (!$userData || !isset($userData['email'])) {
     exit;
 }
 
-// Redirecionar para o frontend com os dados
-$queryParams = http_build_query([
-    'email' => $userData['email'],
-    'nome' => $userData['display_name'] ?? 'Usuário Spotify',
-    'spotify_id' => $userData['id'],
-    'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : '',
-    'success' => '1'
-]);
+// Conectar ao banco para verificar se o usuário já existe
+require_once __DIR__ . '/conexao.php';
 
-header('Location: ' . $frontendUrl . '?' . $queryParams);
+$email = $userData['email'];
+$spotifyId = $userData['id'];
+
+try {
+    // Verificar se o usuário já existe (por email ou spotify_id)
+    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? OR spotify_id = ?");
+    $stmt->execute([$email, $spotifyId]);
+    $usuarioExistente = $stmt->fetch();
+
+    if ($mode === 'login') {
+        // MODO LOGIN
+        if ($usuarioExistente) {
+            // Usuário existe - fazer login automático
+            
+            // Atualizar spotify_conectado se necessário
+            if (!$usuarioExistente['spotify_conectado']) {
+                $updateStmt = $pdo->prepare("UPDATE usuarios SET spotify_conectado = 1, spotify_id = ? WHERE id = ?");
+                $updateStmt->execute([$spotifyId, $usuarioExistente['id']]);
+            }
+
+            // Criar sessão igual ao login normal
+            session_start();
+            session_regenerate_id(true);
+            
+            $_SESSION['usuario_logado'] = true;
+            $_SESSION['usuario_id'] = $usuarioExistente['id'];
+            $_SESSION['usuario_perfil'] = $usuarioExistente['perfil'];
+
+            // Redirecionar com dados de login
+            $queryParams = http_build_query([
+                'spotify_login' => '1',
+                'success' => '1'
+            ]);
+
+            header('Location: ' . $frontendUrl . '?' . $queryParams);
+            
+        } else {
+            // Usuário não existe - erro no login
+            header('Location: ' . $frontendUrl . '?error=' . urlencode('Conta não encontrada. Faça o cadastro primeiro.'));
+        }
+        
+    } else {
+        // MODO REGISTER
+        if ($usuarioExistente) {
+            // Usuário já existe - redirecionar para login
+            header('Location: ' . $frontendUrl . '?error=' . urlencode('Esta conta já existe. Faça login.'));
+            
+        } else {
+            // Usuário não existe - prosseguir com cadastro
+            $queryParams = http_build_query([
+                'email' => $userData['email'],
+                'nome' => $userData['display_name'] ?? 'Usuário Spotify',
+                'spotify_id' => $userData['id'],
+                'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : '',
+                'success' => '1',
+                'action' => 'register'
+            ]);
+
+            header('Location: ' . $frontendUrl . '?' . $queryParams);
+        }
+    }
+    
+} catch (Exception $e) {
+    header('Location: ' . $frontendUrl . '?error=' . urlencode('Erro interno: ' . $e->getMessage()));
+    exit;
+}
 exit;
 ?>
