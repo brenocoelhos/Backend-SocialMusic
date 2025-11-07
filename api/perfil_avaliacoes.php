@@ -15,7 +15,7 @@ if (!$perfil_id) {
 }
 
 try {
-    
+   
     $stmt_avaliacoes = $pdo->prepare("
         SELECT 
             a.id, a.nota, a.titulo, a.comentario,
@@ -23,13 +23,13 @@ try {
             m.artista as musica_artista, 
             m.capa_url as musica_capa
         FROM avaliacoes a
-        JOIN musicas m ON a.musica_id = m.id
+        LEFT JOIN musicas m ON a.musica_id = m.id
         WHERE a.usuario_id = ?
         ORDER BY a.data_criacao DESC
         LIMIT :limit OFFSET :offset
     ");
+
     
-    // Bind dos parâmetros (necessário para LIMIT/OFFSET)
     $stmt_avaliacoes->bindParam(':limit', $limit, PDO::PARAM_INT);
     $stmt_avaliacoes->bindParam(':offset', $offset, PDO::PARAM_INT);
     $stmt_avaliacoes->bindParam(1, $perfil_id, PDO::PARAM_INT);
@@ -37,14 +37,15 @@ try {
     $stmt_avaliacoes->execute();
     $avaliacoes_raw = $stmt_avaliacoes->fetchAll();
     
-    // Formatar os dados (igual ao que já fazia)
+    // Formatar os dados
     $avaliacoes_formatadas = [];
     foreach ($avaliacoes_raw as $row) {
          $avaliacoes_formatadas[] = [
             'musica' => [
-                'titulo' => $row['musica_titulo'],
-                'artista' => $row['musica_artista'],
-                'capa' => $row['musica_capa']
+                // --- MUDANÇA AQUI: Lidar com NULLs (caso o JOIN falhe) ---
+                'titulo' => $row['musica_titulo'] ?? 'Música desconhecida',
+                'artista' => $row['musica_artista'] ?? 'Artista desconhecido',
+                'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150' // URL de capa padrão
             ],
             'nota' => (float)$row['nota'],
             'titulo' => $row['titulo'],
@@ -52,6 +53,7 @@ try {
             'likes' => 0
         ];
     }
+    // --- FIM DA MUDANÇA ---
 
     echo json_encode(['sucesso' => true, 'avaliacoes' => $avaliacoes_formatadas]);
 
