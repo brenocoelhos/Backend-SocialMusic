@@ -87,9 +87,35 @@ curl_close($ch);
 
 $userData = json_decode($userResponse, true);
 
+// DEBUG: Log dos dados retornados pelo Spotify
+error_log('=== SPOTIFY USER DATA DEBUG ===');
+error_log('HTTP Code: ' . curl_getinfo(curl_init(), CURLINFO_HTTP_CODE));
+error_log('Response: ' . $userResponse);
+error_log('Parsed Data: ' . json_encode($userData, JSON_PRETTY_PRINT));
+error_log('Has email: ' . (isset($userData['email']) ? 'YES - ' . $userData['email'] : 'NO'));
+error_log('================================');
+
 if (!$userData || !isset($userData['email'])) {
-    header('Location: ' . $frontendUrl . '?error=' . urlencode('Email não disponível na conta Spotify'));
-    exit;
+    // Tentar alternativas para o email
+    $email = null;
+    
+    if (isset($userData['email'])) {
+        $email = $userData['email'];
+    } elseif (isset($userData['id'])) {
+        // Usar o ID do Spotify + domínio fake como fallback
+        $email = $userData['id'] . '@spotify.local';
+        error_log('Email não disponível, usando ID como fallback: ' . $email);
+    }
+    
+    if (!$email) {
+        $errorMessage = 'Dados incompletos do Spotify. Debug: ' . json_encode($userData);
+        error_log($errorMessage);
+        header('Location: ' . $frontendUrl . '?error=' . urlencode('Email não disponível na conta Spotify'));
+        exit;
+    }
+    
+    // Usar o email alternativo
+    $userData['email'] = $email;
 }
 
 // Conectar ao banco para verificar se o usuário já existe
@@ -99,9 +125,9 @@ $email = $userData['email'];
 $spotifyId = $userData['id'];
 
 try {
-    // Verificar se o usuário já existe (por email ou spotify_id)
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? OR spotify_id = ?");
-    $stmt->execute([$email, $spotifyId]);
+    // Verificar se o usuário já existe (PRIORIDADE: spotify_id, depois email)
+    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE spotify_id = ? OR email = ?");
+    $stmt->execute([$spotifyId, $email]);
     $usuarioExistente = $stmt->fetch();
 
     if ($mode === 'login') {
@@ -150,7 +176,8 @@ try {
                 'spotify_id' => $userData['id'],
                 'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : '',
                 'success' => '1',
-                'action' => 'register'
+                'action' => 'register',
+                'email_fallback' => strpos($userData['email'], '@spotify.local') !== false ? '1' : '0'
             ]);
 
             header('Location: ' . $frontendUrl . '?' . $queryParams);

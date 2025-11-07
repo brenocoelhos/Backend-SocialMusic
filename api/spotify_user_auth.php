@@ -39,7 +39,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'authorize') {
     // Gerar URL de autorização do Spotify para usuários
     
-    $scopes = 'user-read-private user-read-email';
+    $scopes = 'user-read-private user-read-email user-read-birthdate user-read-country';
     $state = bin2hex(random_bytes(16)); // Para segurança
     $mode = $_GET['mode'] ?? 'register'; // 'login' ou 'register'
     
