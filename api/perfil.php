@@ -12,8 +12,7 @@ if (!$utilizador_logado_id) {
 $perfil_id = $_GET['id'] ?? $utilizador_logado_id;
 
 try {
-    // 1. Buscar os dados do perfil (incluindo 'generos' e 'avatar_url')
-    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, avatar_url, generos FROM usuarios WHERE id = ?");
+    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = ?");
     $stmt_perfil->execute([$perfil_id]);
     $perfil = $stmt_perfil->fetch();
 
@@ -23,10 +22,13 @@ try {
         exit;
     }
     
-    if (empty($perfil['avatar_url'])) {
+    
+    if (empty($perfil['foto_perfil'])) {
+        // Se a foto de perfil estiver vazia, envia um avatar padrão
         $perfil['avatar'] = 'https://i.pravatar.cc/150?u=' . $perfil['id'];
     } else {
-        $perfil['avatar'] = $perfil['avatar_url'];
+        // Se houver foto, envia-a com o nome 'avatar'
+        $perfil['avatar'] = $perfil['foto_perfil'];
     }
 
     // 2. Verificar o estado "Seguir"
@@ -48,14 +50,13 @@ try {
     $perfil['followers_count'] = $stmt_followers->fetchColumn();
 
 
-  
+    // 4. Contar o total de avaliações
     $stmt_reviews_count = $pdo->prepare("SELECT COUNT(*) FROM avaliacoes WHERE usuario_id = ?");
     $stmt_reviews_count->execute([$perfil_id]);
     $perfil['total_avaliacoes'] = $stmt_reviews_count->fetchColumn();
  
 
     
-    // 5. Enviar a resposta (SEM a lista de avaliações)
     echo json_encode([
         'sucesso' => true,
         'perfil' => $perfil, 
