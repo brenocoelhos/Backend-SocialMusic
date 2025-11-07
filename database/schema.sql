@@ -43,9 +43,11 @@ CREATE TABLE `usuarios` (
   `nome` varchar(100) NOT NULL,
   `username` varchar(100) NOT NULL,
   `email` varchar(255) NOT NULL,
-  `senha_hash` varchar(255) NOT NULL,
+  `senha_hash` varchar(255) DEFAULT NULL,
   `perfil` enum('admin','user') NOT NULL DEFAULT 'user',
-  `ativo` tinyint(1) NOT NULL DEFAULT 1
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `spotify_id` varchar(100) DEFAULT NULL,
+  `spotify_conectado` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -73,7 +75,8 @@ ALTER TABLE `musicas`
 ALTER TABLE `usuarios`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `username` (`username`);
+  ADD UNIQUE KEY `username` (`username`),
+  ADD UNIQUE KEY `spotify_id` (`spotify_id`);
 
 --
 -- AUTO_INCREMENT para tabelas despejadas

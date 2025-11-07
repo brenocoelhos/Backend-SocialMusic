@@ -22,7 +22,8 @@ $response = [
             '/api/spotify_callback_owner.php',
             '/api/spotify_musicas.php',
             '/api/spotify_owner_info.php',
-            '/api/spotify_user_auth.php'
+            '/api/spotify_user_auth.php',
+            '/api/spotify_user_callback.php'
         ],
         'search' => [
             '/api/search.php'

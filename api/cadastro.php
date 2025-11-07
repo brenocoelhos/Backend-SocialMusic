@@ -5,10 +5,21 @@ require_once 'conexao.php';
 // Decodifica o JSON vindo do App.vue
 $dados = json_decode(file_get_contents("php://input"), true);
 
+// Verificar se é um cadastro via Spotify
+$origem = $dados['origem'] ?? 'normal';
+$isSpotifySignup = ($origem === 'spotify');
+
 // Validação dos campos obrigatórios
-if (!$dados || empty($dados['nome']) || empty($dados['email']) || empty($dados['senha'])) {
+if (!$dados || empty($dados['nome']) || empty($dados['email'])) {
     http_response_code(400); // Bad Request
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Nome, email e senha são obrigatórios.']);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Nome e email são obrigatórios.']);
+    exit;
+}
+
+// Para cadastro via Spotify, senha pode não ser obrigatória inicialmente
+if (!$isSpotifySignup && empty($dados['senha'])) {
+    http_response_code(400); // Bad Request
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Senha é obrigatória para cadastro normal.']);
     exit;
 }
 
@@ -16,7 +27,11 @@ if (!$dados || empty($dados['nome']) || empty($dados['email']) || empty($dados['
 $nome = $dados['nome'];
 $email = $dados['email'];
 $username = $dados['username'] ?? $dados['email']; // Usa email como username se não fornecido
-$senha_hash = password_hash($dados['senha'], PASSWORD_DEFAULT);
+$spotify_id = $dados['spotifyId'] ?? null;
+$spotify_conectado = $isSpotifySignup ? 1 : 0;
+
+// Hash da senha (se fornecida)
+$senha_hash = !empty($dados['senha']) ? password_hash($dados['senha'], PASSWORD_DEFAULT) : null;
 
 // Define perfil automaticamente baseado no domínio do email
 // Emails com @socialmusic.com são automaticamente admin
@@ -37,6 +52,17 @@ if ($stmt->fetch()) {
     exit;
 }
 
+// 1.1. Se for cadastro via Spotify, verifica se o spotify_id já existe
+if ($isSpotifySignup && $spotify_id) {
+    $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE spotify_id = ?");
+    $stmt->execute([$spotify_id]);
+    if ($stmt->fetch()) {
+        http_response_code(409); // Conflict
+        echo json_encode(['sucesso' => false, 'mensagem' => 'Esta conta do Spotify já está vinculada a outro usuário.']);
+        exit;
+    }
+}
+
 // 2. Verifica se o username já existe
 $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE username = ?");
 $stmt->execute([$username]);
@@ -47,9 +73,16 @@ if ($stmt->fetch()) {
 }
 
 // 3. Insere o novo usuário
-$stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo) VALUES (?, ?, ?, ?, ?, ?)");
+if ($isSpotifySignup) {
+    $stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo, spotify_id, spotify_conectado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $params = [$nome, $username, $email, $senha_hash, $perfil, $ativo, $spotify_id, $spotify_conectado];
+} else {
+    $stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo, spotify_conectado) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $params = [$nome, $username, $email, $senha_hash, $perfil, $ativo, $spotify_conectado];
+}
+
 try {
-    $stmt->execute([$nome, $username, $email, $senha_hash, $perfil, $ativo]);
+    $stmt->execute($params);
     
     http_response_code(201); // Created
     echo json_encode(['sucesso' => true, 'mensagem' => 'Usuário cadastrado com sucesso!']);
