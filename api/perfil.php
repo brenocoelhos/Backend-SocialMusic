@@ -12,6 +12,7 @@ if (!$utilizador_logado_id) {
 $perfil_id = $_GET['id'] ?? $utilizador_logado_id;
 
 try {
+    // 1. Buscar os dados do perfil (lendo 'foto_perfil' e 'generos')
     $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = ?");
     $stmt_perfil->execute([$perfil_id]);
     $perfil = $stmt_perfil->fetch();
@@ -22,12 +23,10 @@ try {
         exit;
     }
     
-    
+    // Lógica do Avatar
     if (empty($perfil['foto_perfil'])) {
-        // Se a foto de perfil estiver vazia, envia um avatar padrão
         $perfil['avatar'] = 'https://i.pravatar.cc/150?u=' . $perfil['id'];
     } else {
-        // Se houver foto, envia-a com o nome 'avatar'
         $perfil['avatar'] = $perfil['foto_perfil'];
     }
 
@@ -49,17 +48,43 @@ try {
     $stmt_followers->execute([$perfil_id]);
     $perfil['followers_count'] = $stmt_followers->fetchColumn();
 
-
-    // 4. Contar o total de avaliações
-    $stmt_reviews_count = $pdo->prepare("SELECT COUNT(*) FROM avaliacoes WHERE usuario_id = ?");
-    $stmt_reviews_count->execute([$perfil_id]);
-    $perfil['total_avaliacoes'] = $stmt_reviews_count->fetchColumn();
- 
-
     
+    $stmt_avaliacoes = $pdo->prepare("
+        SELECT 
+            a.id, a.nota, a.titulo, a.comentario,
+            m.titulo as musica_titulo, 
+            m.artista as musica_artista, 
+            m.capa_url as musica_capa
+        FROM avaliacoes a
+        LEFT JOIN musicas m ON a.musica_id = m.id
+        WHERE a.usuario_id = ?
+        ORDER BY a.data_criacao DESC
+        
+    ");
+    $stmt_avaliacoes->execute([$perfil_id]);
+    $avaliacoes_raw = $stmt_avaliacoes->fetchAll();
+    
+    // Formatamos os dados
+    $avaliacoes_formatadas = [];
+    foreach ($avaliacoes_raw as $row) {
+         $avaliacoes_formatadas[] = [
+            'musica' => [
+                'titulo' => $row['musica_titulo'] ?? 'Música desconhecida',
+                'artista' => $row['musica_artista'] ?? 'Artista desconhecido',
+                'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150'
+            ],
+            'nota' => (float)$row['nota'],
+            'titulo' => $row['titulo'],
+            'comentario' => $row['comentario'],
+            'likes' => 0
+        ];
+    }
+
+    // 5. Enviar a resposta completa (COM a lista de avaliações)
     echo json_encode([
         'sucesso' => true,
-        'perfil' => $perfil, 
+        'perfil' => $perfil,
+        'avaliacoes' => $avaliacoes_formatadas, // A lista de avaliações está de volta
         'is_self' => $is_self,
         'is_following' => $is_following
     ]);
