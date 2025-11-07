@@ -123,10 +123,10 @@ try {
             $_SESSION['usuario_id'] = $usuarioExistente['id'];
             $_SESSION['usuario_perfil'] = $usuarioExistente['perfil'];
 
-            // Redirecionar com dados de login
+            // Redirecionar com dados de login (SEM success=1 para não confundir com cadastro)
             $queryParams = http_build_query([
-                'spotify_login' => '1',
-                'success' => '1'
+                'spotify_login' => 'success',
+                'user_name' => $usuarioExistente['nome']
             ]);
 
             header('Location: ' . $frontendUrl . '?' . $queryParams);
