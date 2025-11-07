@@ -27,6 +27,7 @@ if (file_exists($envFile)) {
 $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? '';
 $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? '';
 $frontendUrl = $_ENV['FRONTEND_URL'] ?? 'http://localhost:3000';
+$redirectUri = $_ENV['SPOTIFY_USER_REDIRECT_URI'] ?? 'https://backend-socialmusic.onrender.com/api/spotify_user_callback.php';
 
 if (empty($clientId) || empty($clientSecret)) {
     echo json_encode(['erro' => 'Credenciais do Spotify não configuradas no .env']);
@@ -48,9 +49,6 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'authoriz
     
     // Salvar o state em arquivo temporário
     file_put_contents(__DIR__ . '/../temp/spotify_user_state.txt', $state);
-
-    // Definir redirect URI para o callback
-    $redirectUri = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . str_replace('spotify_user_auth.php', 'spotify_user_callback.php', $_SERVER['REQUEST_URI']);
 
     $authUrl = 'https://accounts.spotify.com/authorize?' . http_build_query([
         'response_type' => 'code',

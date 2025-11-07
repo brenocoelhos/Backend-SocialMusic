@@ -17,6 +17,7 @@ if (file_exists($envFile)) {
 $clientId = $_ENV['SPOTIFY_CLIENT_ID'] ?? '';
 $clientSecret = $_ENV['SPOTIFY_CLIENT_SECRET'] ?? '';
 $frontendUrl = $_ENV['FRONTEND_URL'] ?? 'http://localhost:3000';
+$redirectUri = $_ENV['SPOTIFY_USER_REDIRECT_URI'] ?? 'https://backend-socialmusic.onrender.com/api/spotify_user_callback.php';
 
 if (empty($clientId) || empty($clientSecret)) {
     header('Location: ' . $frontendUrl . '?error=' . urlencode('Credenciais do Spotify não configuradas'));
@@ -41,10 +42,6 @@ if ($state !== $savedState) {
     header('Location: ' . $frontendUrl . '?error=' . urlencode('State inválido'));
     exit;
 }
-
-// Definir redirect URI (mesmo usado na autorização)
-$redirectUri = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-$redirectUri = strtok($redirectUri, '?'); // Remove query parameters
 
 // Trocar code por token
 $ch = curl_init();
