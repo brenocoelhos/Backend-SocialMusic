@@ -13,9 +13,9 @@ $perfil_id = $_GET['id'] ?? $utilizador_logado_id;
 
 try {
     // 1. Buscar os dados do perfil (lendo 'foto_perfil' e 'generos')
-    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = ?");
-    $stmt_perfil->execute([$perfil_id]);
-    $perfil = $stmt_perfil->fetch();
+    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = :perfil_id");
+    $stmt_perfil->execute([':perfil_id' => $perfil_id]);
+    $perfil = $stmt_perfil->fetch(PDO::FETCH_ASSOC);
 
     if (!$perfil) {
         http_response_code(404);
@@ -34,22 +34,33 @@ try {
     $is_self = ($utilizador_logado_id == $perfil_id);
     $is_following = false;
     if (!$is_self) {
-        $stmt_follow = $pdo->prepare("SELECT * FROM seguidores WHERE seguidor_id = ? AND seguido_id = ?");
-        $stmt_follow->execute([$utilizador_logado_id, $perfil_id]);
-        $is_following = (bool) $stmt_follow->fetch();
+        $stmt_follow = $pdo->prepare("SELECT * FROM seguidores WHERE seguidor_id = :logado_id AND seguido_id = :perfil_id");
+        $stmt_follow->execute([
+            ':logado_id' => $utilizador_logado_id, 
+            ':perfil_id' => $perfil_id
+        ]); 
+        $is_following = (bool) $stmt_follow->fetchColumn();
     }
 
     // 3. Contar Seguidores e Seguindo
-    $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = ?");
-    $stmt_following->execute([$perfil_id]);
+    $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = :perfil_id");
+    $stmt_following->execute([':perfil_id' => $perfil_id]);
+    $err = $stmt_following->errorInfo();
+    if ($stmt_following->errorCode() !== '00000') {
+        error_log('perfil.php - Erro stmt_following: ' . implode(' | ', $err));
+    }
     $perfil['following_count'] = $stmt_following->fetchColumn();
 
-    $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = ?");
-    $stmt_followers->execute([$perfil_id]);
+    $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = :perfil_id");
+    $stmt_followers->execute([':perfil_id' => $perfil_id]);
+    $err = $stmt_followers->errorInfo();
+    if ($stmt_followers->errorCode() !== '00000') {
+        error_log('perfil.php - Erro stmt_followers: ' . implode(' | ', $err));
+    }
     $perfil['followers_count'] = $stmt_followers->fetchColumn();
 
     
-    $stmt_avaliacoes = $pdo->prepare("
+    $sql_avaliacoes = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario,
             m.titulo as musica_titulo, 
@@ -59,17 +70,27 @@ try {
             (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
         FROM avaliacoes a
         LEFT JOIN musicas m ON a.musica_id = m.id
-        WHERE a.usuario_id = ?
+        WHERE a.usuario_id = :perfil_id
         ORDER BY a.data_criacao DESC
-        
-    ");
-    $stmt_avaliacoes->execute([$perfil_id]);
-    $avaliacoes_raw = $stmt_avaliacoes->fetchAll();
+    ";
+
+    $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
+
+    $stmt_avaliacoes->bindValue(':perfil_id', $perfil_id, PDO::PARAM_INT);
+    if ($utilizador_logado_id === null) {
+        $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
+    } else {
+        $stmt_avaliacoes->bindValue(':usuario_logado_id', $utilizador_logado_id, PDO::PARAM_INT);
+    }
+
+    $stmt_avaliacoes->execute();
+    $avaliacoes_raw = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
     
     // Formatamos os dados
     $avaliacoes_formatadas = [];
     foreach ($avaliacoes_raw as $row) {
          $avaliacoes_formatadas[] = [
+            'id' => $row['id'],
             'musica' => [
                 'titulo' => $row['musica_titulo'] ?? 'Música desconhecida',
                 'artista' => $row['musica_artista'] ?? 'Artista desconhecido',
