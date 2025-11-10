@@ -24,7 +24,7 @@ class SpotifyAPI {
 
         $ch = curl_init();
         
-        curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token');
+        curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token'); 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, 'grant_type=client_credentials');
@@ -81,9 +81,8 @@ class SpotifyAPI {
         return json_decode($response, true);
     }
 
-    /**
-     * Verifica se o token do usuário ainda é válido
-     */
+
+    // Verifica se o token do usuário ainda é válido
     private function isUserTokenValid() {
         return $this->userAccessToken && 
                ($this->userTokenExpiration === null || time() < $this->userTokenExpiration);
@@ -142,8 +141,7 @@ class SpotifyAPI {
             }
             
             // Fallback 1: Buscar nas charts/playlists do Brasil
-
-            $url = "https://api.spotify.com/v1/browse/categories/charts/playlists?country=BR&limit=10";
+            $url = "https://api.spotify.com/v1/browse/categories/toplists/playlists?country=BR&limit=5";
             $data = $this->makeRequest($url);
             
             // Procurar por uma playlist que contenha "top" ou "viral" no nome
@@ -159,8 +157,7 @@ class SpotifyAPI {
             }
             
             // Fallback 2: Featured playlists
-
-            $url = "https://api.spotify.com/v1/browse/featured-playlists?country=BR&limit=1&timestamp=" . urlencode(date('Y-m-d\TH:i:s'));
+            $url = "https://api.spotify.com/v1/browse/featured-playlists?country=BR&timestamp=" . urlencode(date('Y-m-d\TH:i:s'));
             $data = $this->makeRequest($url);
             
             if (isset($data['playlists']['items'][0])) {
@@ -214,8 +211,7 @@ public function getTopMusicas($limit = 10) {
         }
         
         // Se Last.fm falhar, tentar new releases do Spotify
-
-        $url = "https://api.spotify.com/v1/browse/new-releases?country=BR&limit={$limit}";
+        $url = "https://api.spotify.com/v1/browse/new-releases?limit={$limit}";
         $data = $this->makeRequest($url);
         
         if (!isset($data['albums']) || empty($data['albums']['items'])) {
@@ -225,7 +221,6 @@ public function getTopMusicas($limit = 10) {
         $tracks = [];
         foreach ($data['albums']['items'] as $album) {
             // Buscar a primeira track de cada álbum
-
             $albumTracksUrl = "https://api.spotify.com/v1/albums/{$album['id']}/tracks?limit=1";
             try {
                 $trackData = $this->makeRequest($albumTracksUrl);
