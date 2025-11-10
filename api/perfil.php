@@ -54,7 +54,9 @@ try {
             a.id, a.nota, a.titulo, a.comentario,
             m.titulo as musica_titulo, 
             m.artista as musica_artista, 
-            m.capa_url as musica_capa
+            m.capa_url as musica_capa,
+            (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
+            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
         FROM avaliacoes a
         LEFT JOIN musicas m ON a.musica_id = m.id
         WHERE a.usuario_id = ?
@@ -76,7 +78,8 @@ try {
             'nota' => (float)$row['nota'],
             'titulo' => $row['titulo'],
             'comentario' => $row['comentario'],
-            'likes' => 0
+            'likes' => (int)$row['total_curtidas'],
+            'usuario_curtiu' => (bool)$row['usuario_curtiu']
         ];
     }
 
@@ -84,7 +87,7 @@ try {
     echo json_encode([
         'sucesso' => true,
         'perfil' => $perfil,
-        'avaliacoes' => $avaliacoes_formatadas, // A lista de avaliações está de volta
+        'avaliacoes' => $avaliacoes_formatadas, 
         'is_self' => $is_self,
         'is_following' => $is_following
     ]);
