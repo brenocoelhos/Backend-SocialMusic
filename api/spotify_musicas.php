@@ -44,15 +44,6 @@ try {
                 'titulo' => $spotifyTrack->name,
                 'artista' => $artistName,
                 'capa' => $spotifyTrack->album->images[0]->url ?? $track['capa'],
-                
-                // Dados extras para a página de avaliação
-                'duration_ms' => $spotifyTrack->duration_ms,
-                'release_date' => $spotifyTrack->album->release_date,
-                'popularity' => $spotifyTrack->popularity,
-                'explicit' => $spotifyTrack->explicit,
-                'album_name' => $spotifyTrack->album->name,
-                'album_type' => $spotifyTrack->album->album_type,
-                'spotify_url' => $spotifyTrack->external_urls->spotify
             ];
         }
         // Se não encontrar no Spotify, a música é simplesmente ignorada da lista.

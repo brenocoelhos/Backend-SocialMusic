@@ -319,4 +319,19 @@ public function getTopMusicas($limit = 10) {
         return json_decode($result);
     }
 
+    // Busca uma faixa específica pelo ID
+    public function getTrackById($trackId)
+    {
+        if (!$this->accessToken) {
+            return null; // Não foi possível obter o token
+        }
+        $url = "https://api.spotify.com/v1/tracks/{$trackId}?market=BR";
+
+        try {
+            return $this->makeRequest($url);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar track por ID: " . $e->getMessage());
+            return null; 
+        }
+    }
 }

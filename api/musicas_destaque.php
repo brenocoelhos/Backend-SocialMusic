@@ -8,7 +8,7 @@ $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 6; // Número de músicas
 try {
     $sql = "
         SELECT
-            m.id,
+            m.spotify_id AS id,
             m.titulo,
             m.artista,
             m.capa_url,
