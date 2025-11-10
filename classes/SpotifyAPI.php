@@ -78,7 +78,7 @@ class SpotifyAPI {
             throw new Exception("Erro na requisição ao Spotify - HTTP $httpCode: $response");
         }
 
-        return json_decode($response, true);
+        return json_decode($response);
     }
 
     /**
