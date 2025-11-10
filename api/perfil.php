@@ -2,14 +2,25 @@
 require_once 'header.php';
 require_once 'conexao.php';
 
+// Antigo código do pedro não deixava usuários não logados acessarem o perfil de outros usuários
+// AJUSTADO 
+
 $utilizador_logado_id = $_SESSION['usuario_id'] ?? null;
-if (!$utilizador_logado_id) {
+$perfil_id_param = $_GET['id'] ?? null;
+
+// Determina qual perfil carregar
+$perfil_id = $perfil_id_param ? (int)$perfil_id_param : $utilizador_logado_id;
+
+// BLOQUEAR APENAS SE:
+// O usuário NÃO está logado E NÃO forneceu um ID de perfil na URL
+// (ou seja, tentou acessar a própria página de perfil sem estar logado)
+if (!$perfil_id) { 
     http_response_code(401);
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Utilizador não autenticado.']);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Acesso negado. Faça login ou especifique um ID de perfil.']);
     exit;
 }
 
-$perfil_id = $_GET['id'] ?? $utilizador_logado_id;
+$is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);
 
 try {
     // 1. Buscar os dados do perfil (lendo 'foto_perfil' e 'generos')
