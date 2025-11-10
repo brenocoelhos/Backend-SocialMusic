@@ -152,7 +152,11 @@ try {
             // Redirecionar com dados de login (SEM success=1 para não confundir com cadastro)
             $queryParams = http_build_query([
                 'spotify_login' => 'success',
-                'user_name' => $usuarioExistente['nome']
+                'id' => $usuarioExistente['id'],
+                'nome' => $usuarioExistente['nome'],
+                'email' => $usuarioExistente['email'],
+                'perfil' => $usuarioExistente['perfil'],
+                'foto' => $usuarioExistente['foto_perfil'] ?? '' // Envia a foto também
             ]);
 
             header('Location: ' . $frontendUrl . '?' . $queryParams);
