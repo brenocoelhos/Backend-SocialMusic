@@ -2,8 +2,6 @@
 require_once 'header.php';
 require_once 'conexao.php';
 
-// adicionei erro_log para verificar qual etapa está causando erro
-
 $query = $_GET['q'] ?? '';
 
 // Sanitizar entrada: remover caracteres especiais perigosos, manter alfanuméricos, espaços e alguns caracteres comuns
@@ -21,8 +19,6 @@ $searchTerm = '%' . $query . '%';
 
 // Busca tanto por nome quanto por username 
 try {
-    // Log de debug
-    error_log('buscar_membros.php - Iniciando busca. Query original: ' . var_export($_GET['q'] ?? '', true) . ', Query sanitizada: ' . var_export($query, true) . ', searchTerm: ' . var_export($searchTerm, true));
     
     $sql = "
         SELECT
@@ -32,17 +28,11 @@ try {
         LIMIT 10";
 
     $stmt = $pdo->prepare($sql);
-    
-    // Log da preparação
-    error_log('buscar_membros.php - SQL preparado com sucesso');
-    
+        
     // Usar placeholders únicos e bindar ambos com o mesmo valor
     $stmt->bindValue(':term_nome', $searchTerm, PDO::PARAM_STR);
     $stmt->bindValue(':term_username', $searchTerm, PDO::PARAM_STR);
-    
-    // Log antes do execute
-    error_log('buscar_membros.php - Executando query com termo: ' . var_export($searchTerm, true));
-    
+        
     $stmt->execute();
     $err = $stmt->errorInfo();
     if ($stmt->errorCode() !== '00000') {
@@ -52,9 +42,6 @@ try {
     
     $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Log de sucesso
-    error_log('buscar_membros.php - Sucesso! Encontrados ' . count($usuarios) . ' usuários');
-
     echo json_encode(['sucesso' => true, 'usuarios' => $usuarios]);
 
 } catch (Exception $e) { 
