@@ -67,7 +67,7 @@ try {
 
     // Agora, inserimos a AVALIAÇÃO
     $stmt_review = $pdo->prepare(
-        " SET time_zone = 'America/Sao_Paulo';
+        "
         INSERT INTO avaliacoes (usuario_id, musica_id, nota, titulo, comentario, data_criacao) 
         VALUES (?, ?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
