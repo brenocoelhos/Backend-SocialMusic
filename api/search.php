@@ -1,6 +1,6 @@
 <?php
 // Configuração CORS
-require_once __DIR__ . '/../config/cors.php';
+require_once 'header.php';
 
 require __DIR__ . '/../classes/SpotifyAPI.php';
 

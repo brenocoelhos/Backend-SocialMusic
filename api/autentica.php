@@ -37,7 +37,8 @@ if ($usuario && password_verify($senha, $usuario['senha_hash'])) {
             'id' => $usuario['id'],
             'nome' => $usuario['nome'],
             'email' => $usuario['email'],
-            'perfil' => $usuario['perfil']
+            'perfil' => $usuario['perfil'],
+            'foto' => $usuario['foto_perfil'] ?? null
         ]
     ]);
 } else {
