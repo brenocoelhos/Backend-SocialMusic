@@ -1,15 +1,15 @@
 <?php
 // api/login_token.php
-require_once __DIR__ . '/../config/cors.php';
+
+require_once 'header.php';
+require_once 'conexao.php';
+require_once __DIR__ . '/../classes/AuthManager.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['sucesso' => false, 'mensagem' => 'Método não permitido']);
     exit;
 }
-
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../classes/AuthManager.php';
 
 try {
     // Receber dados
@@ -24,21 +24,11 @@ try {
     if (!$usuario || !$senha) {
         throw new Exception('Usuário e senha são obrigatórios');
     }
-    
-    // Conectar ao banco
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET, DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
-    
+        
     $authManager = new AuthManager($pdo);
     $result = $authManager->login($usuario, $senha);
     
     if ($result) {
-
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
 
         // Salva os dados na SESSÃO (igual o autentica.php faz)
         $_SESSION['usuario_id'] = $result['user']['id'];

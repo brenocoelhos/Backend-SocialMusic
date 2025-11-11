@@ -1,5 +1,7 @@
 <?php
 // api/spotify_user_callback.php - Callback OAuth para usuários finais
+require_once 'header.php';
+require_once 'conexao.php';
 
 // Carregar .env
 $envFile = __DIR__ . '/../.env';
@@ -118,9 +120,6 @@ if (!$userData || !isset($userData['email'])) {
     $userData['email'] = $email;
 }
 
-// Conectar ao banco para verificar se o usuário já existe
-require_once __DIR__ . '/conexao.php';
-
 $email = $userData['email'];
 $spotifyId = $userData['id'];
 
@@ -142,11 +141,10 @@ try {
             }
 
             // Criar sessão igual ao login normal
-            session_start();
             session_regenerate_id(true);
             
-            $_SESSION['usuario_logado'] = true;
             $_SESSION['usuario_id'] = $usuarioExistente['id'];
+            $_SESSION['usuario_email'] = $usuarioExistente['email'];
             $_SESSION['usuario_perfil'] = $usuarioExistente['perfil'];
 
             // Redirecionar com dados de login (SEM success=1 para não confundir com cadastro)
