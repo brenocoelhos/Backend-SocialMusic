@@ -34,7 +34,7 @@ try{
     $musica_id_local = $musica['id'];
 
     // Verificar se o usuário já avaliou essa música
-    $stmt_review = $pdo->prepare("SELECT nota, titulo, comentario FROM avaliacoes WHERE usuario_id = ? AND musica_id = ?");
+    $stmt_review = $pdo->prepare("SELECT id, nota, titulo, comentario FROM avaliacoes WHERE usuario_id = ? AND musica_id = ?");
     $stmt_review->execute([$usuario_id, $musica_id_local]);
     $avaliacao = $stmt_review->fetch(PDO::FETCH_ASSOC);
 

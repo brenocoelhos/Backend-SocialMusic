@@ -77,6 +77,7 @@ try {
             m.titulo as musica_titulo, 
             m.artista as musica_artista, 
             m.capa_url as musica_capa,
+            m.spotify_id as musica_spotify_id,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
             (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
         FROM avaliacoes a
@@ -105,7 +106,8 @@ try {
             'musica' => [
                 'titulo' => $row['musica_titulo'] ?? 'Música desconhecida',
                 'artista' => $row['musica_artista'] ?? 'Artista desconhecido',
-                'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150'
+                'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150',
+                'id' => $row['musica_spotify_id']
             ],
             'nota' => (float)$row['nota'],
             'titulo' => $row['titulo'],
