@@ -11,17 +11,19 @@ if (!$usuario_id) {
 }
 
 // Busca a última avaliação do usuário logado
+//Irei enviar a capa, mas talvez não irei usar no front 
 try{
     $sql= "
         SELECT
 	        a.comentario,
-            u.nome as usuario_nome,
-            u.username as usuario_username,
-            u.foto_perfil as usuario_avatar
-    FROM usuarios u
-    JOIN avaliacoes a 
-	    ON u.id = a.usuario_id
-    WHERE u.id = :usuario_id
+            a.nota,
+            m.titulo AS musica_titulo,
+            m.artista AS musica_artista,
+            m.capa_url AS musica_capa 
+    FROM avaliacoes a
+    JOIN musicas m 
+	    ON a.musica_id = m.id
+    WHERE a.usuario_id = :usuario_id
     ORDER BY a.data_criacao DESC
     LIMIT 1";
 
@@ -34,6 +36,7 @@ try{
 
     // Retorna a última avaliação ou null se não existir
     if ($avaliacao) {
+        $avaliacao['nota'] = (float)$avaliacao['nota'];
         echo json_encode(['sucesso' => true, 'avaliacao' => $avaliacao]);
     } else {
         echo json_encode(['sucesso' => true, 'avaliacao' => null]);
