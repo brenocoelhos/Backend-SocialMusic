@@ -1,6 +1,7 @@
 <?php
 require_once 'header.php';
 require_once 'conexao.php';
+require_once __DIR__ . '/../classes/SpotifyAPI.php';
 
 // Antigo código do pedro não deixava usuários não logados acessarem o perfil de outros usuários
 // AJUSTADO 
@@ -23,6 +24,13 @@ if (!$perfil_id) {
 $is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);
 
 try {
+    $clientId = getenv('SPOTIFY_CLIENT_ID');
+    $clientSecret = getenv('SPOTIFY_CLIENT_SECRET');
+    if (!$clientId || !$clientSecret) {
+        throw new Exception('Credenciais do Spotify não configuradas.');
+    }
+    $spotifyApi = new SpotifyAPI($clientId, $clientSecret);
+
     // 1. Buscar os dados do perfil (lendo 'foto_perfil' e 'generos')
     $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = :perfil_id");
     $stmt_perfil->execute([':perfil_id' => $perfil_id]);
@@ -115,9 +123,40 @@ try {
             'likes' => (int)$row['total_curtidas'],
             'usuario_curtiu' => (bool)$row['usuario_curtiu']
         ];
+        if (!empty($row['musica_spotify_id'])) {
+            // Busca os dados completos no Spotify
+            $spotifyTrack = $spotifyApi->getTrackById($row['musica_spotify_id']); 
+            
+            if ($spotifyTrack) {
+                // Preenche o objeto 'musica' completo
+                $musica_formatada = [
+                    'id' => $spotifyTrack->id,
+                    'titulo' => $spotifyTrack->name,
+                    'artista' => $spotifyTrack->artists[0]->name,
+                    'capa' => $spotifyTrack->album->images[0]->url ?? 'https://via.placeholder.com/150',
+                    'spotify_url' => $spotifyTrack->external_urls->spotify,
+                    'duration_ms' => $spotifyTrack->duration_ms,
+                    'release_date' => $spotifyTrack->album->release_date,
+                    'popularity' => $spotifyTrack->popularity,
+                    'explicit' => $spotifyTrack->explicit,
+                    'album_name' => $spotifyTrack->album->name,
+                    'album_type' => $spotifyTrack->album->album_type
+                ];
+            }
+        }
     }
 
-    // 5. Enviar a resposta completa (COM a lista de avaliações)
+    $avaliacoes_formatadas[] = [
+            'id' => $row['id'],
+            'musica' => $musica_formatada, 
+            'nota' => (float)$row['nota'],
+            'titulo' => $row['titulo'],
+            'comentario' => $row['comentario'],
+            'likes' => (int)$row['total_curtidas'],
+            'usuario_curtiu' => (bool)$row['usuario_curtiu']
+    ];
+
+    // 6. Enviar a resposta completa (COM a lista de avaliações)
     echo json_encode([
         'sucesso' => true,
         'perfil' => $perfil,
@@ -126,8 +165,9 @@ try {
         'is_following' => $is_following
     ]);
 
-} catch (PDOException $e) {
+} catch (Exception $e) {
     http_response_code(500);
+    error_log("Erro em perfil.php: " . $e->getMessage()); 
     echo json_encode(['sucesso' => false, 'mensagem' => 'Erro de servidor.', 'error' => $e->getMessage()]);
 }
 ?>
