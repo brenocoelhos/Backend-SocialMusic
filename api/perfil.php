@@ -57,6 +57,7 @@ try {
     // 3. Contar Seguidores e Seguindo
     $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = :perfil_id");
     $stmt_following->execute([':perfil_id' => $perfil_id]);
+    $perfil['following_count'] = $stmt_following->fetchColumn();
 
     $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = :perfil_id");
     $stmt_followers->execute([':perfil_id' => $perfil_id]);
