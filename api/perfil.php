@@ -21,8 +21,6 @@ if (!$perfil_id) {
     exit;
 }
 
-$is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);
-
 try {
     $clientId = getenv('SPOTIFY_CLIENT_ID');
     $clientSecret = getenv('SPOTIFY_CLIENT_SECRET');
@@ -42,18 +40,13 @@ try {
         exit;
     }
     
-    // Lógica do Avatar
-    if (empty($perfil['foto_perfil'])) {
-        $perfil['avatar'] = 'https://i.pravatar.cc/150?u=' . $perfil['id'];
-    } else {
-        $perfil['avatar'] = $perfil['foto_perfil'];
-    }
+    // Tirei a lógiga do avatar, pois irei tratar no front - Isa
 
     // 2. Verificar o estado "Seguir"
-    $is_self = ($utilizador_logado_id == $perfil_id);
+    $is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);    
     $is_following = false;
-    if (!$is_self) {
-        $stmt_follow = $pdo->prepare("SELECT * FROM seguidores WHERE seguidor_id = :logado_id AND seguido_id = :perfil_id");
+    if (!$is_self && $utilizador_logado_id) {
+        $stmt_follow = $pdo->prepare("SELECT 1 FROM seguidores WHERE seguidor_id = :logado_id AND seguido_id = :perfil_id");
         $stmt_follow->execute([
             ':logado_id' => $utilizador_logado_id, 
             ':perfil_id' => $perfil_id
@@ -64,18 +57,9 @@ try {
     // 3. Contar Seguidores e Seguindo
     $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = :perfil_id");
     $stmt_following->execute([':perfil_id' => $perfil_id]);
-    $err = $stmt_following->errorInfo();
-    if ($stmt_following->errorCode() !== '00000') {
-        error_log('perfil.php - Erro stmt_following: ' . implode(' | ', $err));
-    }
-    $perfil['following_count'] = $stmt_following->fetchColumn();
 
     $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = :perfil_id");
     $stmt_followers->execute([':perfil_id' => $perfil_id]);
-    $err = $stmt_followers->errorInfo();
-    if ($stmt_followers->errorCode() !== '00000') {
-        error_log('perfil.php - Erro stmt_followers: ' . implode(' | ', $err));
-    }
     $perfil['followers_count'] = $stmt_followers->fetchColumn();
 
     
@@ -107,54 +91,61 @@ try {
     $avaliacoes_raw = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
     
     // Formatamos os dados
-    $avaliacoes_formatadas = [];
-    foreach ($avaliacoes_raw as $row) {
-         $avaliacoes_formatadas[] = [
-            'id' => $row['id'],
-            'musica' => [
-                'titulo' => $row['musica_titulo'] ?? 'Música desconhecida',
-                'artista' => $row['musica_artista'] ?? 'Artista desconhecido',
-                'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150',
-                'id' => $row['musica_spotify_id']
-            ],
-            'nota' => (float)$row['nota'],
-            'titulo' => $row['titulo'],
-            'comentario' => $row['comentario'],
-            'likes' => (int)$row['total_curtidas'],
-            'usuario_curtiu' => (bool)$row['usuario_curtiu']
-        ];
-        if (!empty($row['musica_spotify_id'])) {
-            // Busca os dados completos no Spotify
-            $spotifyTrack = $spotifyApi->getTrackById($row['musica_spotify_id']); 
-            
-            if ($spotifyTrack) {
-                // Preenche o objeto 'musica' completo
-                $musica_formatada = [
-                    'id' => $spotifyTrack->id,
-                    'titulo' => $spotifyTrack->name,
-                    'artista' => $spotifyTrack->artists[0]->name,
-                    'capa' => $spotifyTrack->album->images[0]->url ?? 'https://via.placeholder.com/150',
-                    'spotify_url' => $spotifyTrack->external_urls->spotify,
-                    'duration_ms' => $spotifyTrack->duration_ms,
-                    'release_date' => $spotifyTrack->album->release_date,
-                    'popularity' => $spotifyTrack->popularity,
-                    'explicit' => $spotifyTrack->explicit,
-                    'album_name' => $spotifyTrack->album->name,
-                    'album_type' => $spotifyTrack->album->album_type
-                ];
-            }
-        }
-    }
+    $musica_formatada = [];
 
-    $avaliacoes_formatadas[] = [
-            'id' => $row['id'],
-            'musica' => $musica_formatada, 
-            'nota' => (float)$row['nota'],
-            'titulo' => $row['titulo'],
-            'comentario' => $row['comentario'],
-            'likes' => (int)$row['total_curtidas'],
-            'usuario_curtiu' => (bool)$row['usuario_curtiu']
-    ];
+    foreach ($avaliacoes_raw as $row) {
+        // Dados básicos            
+        $musica_formatada = [
+            'id' => $row['musica_spotify_id'],
+            'titulo' => $row['musica_titulo'],
+            'artista' => $row['musica_artista'],
+            'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150',
+            // Valores padrão
+            'spotify_url' => null,
+            'duration_ms' => null,
+            'release_date' => null,
+            'popularity' => null,
+            'explicit' => false,
+            'album_name' => null,
+            'album_type' => null
+        ];
+            // Tenta buscar os dados completos no Spotify
+            if (!empty($row['musica_spotify_id'])) {
+                try {
+                    $spotifyTrack = $spotifyApi->getTrackById($row['musica_spotify_id']);
+
+                    if ($spotifyTrack) {
+                        // Conseguiu buscar, soobrescreve o objeto com dados ricos
+                        $musica_formatada = [
+                            'id' => $spotifyTrack->id,
+                            'titulo' => $spotifyTrack->name,
+                            'artista' => $spotifyTrack->artists[0]->name,
+                            'capa' => $spotifyTrack->album->images[0]->url ?? $row['musica_capa'],
+                            'spotify_url' => $spotifyTrack->external_urls->spotify,
+                            'duration_ms' => $spotifyTrack->duration_ms,
+                            'release_date' => $spotifyTrack->album->release_date,
+                            'popularity' => $spotifyTrack->popularity,
+                            'explicit' => $spotifyTrack->explicit,
+                            'album_name' => $spotifyTrack->album->name,
+                            'album_type' => $spotifyTrack->album->album_type
+                        ];
+                    }
+                } catch (Exception $e) {
+                    error_log("Falha em perfil.php ao buscar getTrackById para " . $row['musica_spotify_id'] . ": " . $e->getMessage());
+                    // Se falhar, $musica_formatada fica com apenas os dados básicos
+                } 
+            }
+            // adiciona a avaliação ao array principal
+            $avaliacoes_formatadas[] = [
+                'id' => $row['id'],
+                'musica' => $musica_formatada, 
+                'nota' => (float)$row['nota'],
+                'titulo' => $row['titulo'],
+                'comentario' => $row['comentario'],
+                'likes' => (int)$row['total_curtidas'],
+                'usuario_curtiu' => (bool)$row['usuario_curtiu']
+            ];
+        }
 
     // 6. Enviar a resposta completa (COM a lista de avaliações)
     echo json_encode([
