@@ -11,9 +11,15 @@ try{
     $clientId = getenv('SPOTIFY_CLIENT_ID');
     $clientSecret = getenv('SPOTIFY_CLIENT_SECRET');
 
+    if (!$clientId || !$clientSecret) {
+        throw new Exception('Credenciais do Spotify não configuradas.');
+    }
+    $spotifyApi = new SpotifyAPI($clientId, $clientSecret);
+
     $sql = "
         SELECT 
             a.id, a.nota, a.titulo, a.comentario,
+            DATE_FORMAT(a.data_criacao, '%Y-%m-%dT%H:%i:%sZ') AS data_criacao,
             u.id AS usuario_id, 
             u.nome AS usuario_nome, 
             u.foto_perfil AS usuario_avatar,
@@ -45,8 +51,8 @@ try{
     $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Formatar os dados
-    $musicas_formatadas = [];
-    foreach ($avaliacoes_raw as $row) {
+    $avaliacoes_formatadas = [];
+    foreach ($avaliacoes as $row) {
         // Dados básicos            
         $musica_formatada = [
             'id' => $row['musica_spotify_id'],
@@ -85,7 +91,7 @@ try{
                         ];
                     }
                 } catch (Exception $e) {
-                    error_log("Falha em perfil.php ao buscar getTrackById para " . $row['musica_spotify_id'] . ": " . $e->getMessage());
+                    error_log("Falha em principais_avaliacoes.php ao buscar getTrackById para " . $row['musica_spotify_id'] . ": " . $e->getMessage());
                     // Se falhar, $musica_formatada fica com apenas os dados básicos
                 } 
             }
@@ -96,6 +102,7 @@ try{
                 'nota' => (float)$row['nota'],
                 'titulo' => $row['titulo'],
                 'comentario' => $row['comentario'],
+                'data_criacao' => $row['data_criacao'], 
                 'likes' => (int)$row['total_curtidas'],
                 'usuario_curtiu' => (bool)$row['usuario_curtiu'],
                 'is_following' => (bool)$row['is_following'],
