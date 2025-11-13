@@ -57,7 +57,8 @@ try{
     //Buscar a lista de avaliações com informações do usuário e curtidas
 $sql_avaliacoes = "
         SELECT 
-            a.id, a.nota, a.titulo, a.comentario, a.data_criacao,
+            a.id, a.nota, a.titulo, a.comentario, 
+            DATE_FORMAT(a.data_criacao, '%Y-%m-%dT%H:%i:%sZ') AS data_criacao,
             u.id as usuario_id, 
             u.nome as usuario_nome,
             u.username as usuario_username,
