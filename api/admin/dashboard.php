@@ -5,7 +5,7 @@ $resposta = [
     'sucesso' => true,
     'stats' => [],
     'users' => [],
-    'activities' => [] 
+    'activities' => [] // <--- NOVO CAMPO
 ];
 
 try {
