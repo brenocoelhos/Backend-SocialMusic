@@ -4,38 +4,59 @@ require_once 'guard.php'; // Já inclui header, conexao e verifica o admin
 $resposta = [
     'sucesso' => true,
     'stats' => [],
-    'users' => []
+    'users' => [],
+    'activities' => [] 
 ];
 
-// 1. Buscar Estatísticas
-$stats = [];
+try {
+    // 1. Buscar Estatísticas (Igual a antes)
+    $stats = [];
+    $stats['totalUsers'] = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
+    $stats['totalSongs'] = $pdo->query("SELECT COUNT(*) FROM musicas")->fetchColumn();
+    $stats['totalReviews'] = $pdo->query("SELECT COUNT(*) FROM avaliacoes")->fetchColumn();
+    $stats['totalComments'] = $stats['totalReviews']; 
+    $resposta['stats'] = $stats;
 
-// Contar utilizadores
-$stmt_users_count = $pdo->query("SELECT COUNT(*) as totalUsers FROM usuarios");
-$stats['totalUsers'] = $stmt_users_count->fetchColumn();
+    // 2. Buscar Usuários Recentes (Igual a antes)
+    $stmt_users = $pdo->query("SELECT id, nome, email, ativo FROM usuarios ORDER BY id DESC LIMIT 10");
+    $users = $stmt_users->fetchAll();
+    foreach ($users as &$user) {
+        $user['ativo'] = (bool)$user['ativo'];
+    }
+    $resposta['users'] = $users;
 
-// --- MUDANÇA AQUI ---
-// Contar músicas
-$stmt_songs_count = $pdo->query("SELECT COUNT(*) as totalSongs FROM musicas");
-$stats['totalSongs'] = $stmt_songs_count->fetchColumn();
+    // 3. BUSCAR ÚLTIMAS ATIVIDADES (NOVO!)
+    // Usamos UNION para juntar Avaliações e Cadastros numa só lista
+    $sql_activities = "
+        (SELECT 
+            'new_user' as tipo,
+            nome as titulo,
+            'Criou uma conta no sistema' as descricao,
+            data_criacao as data
+         FROM usuarios)
+        
+        UNION
+        
+        (SELECT 
+            'new_review' as tipo,
+            u.nome as titulo,
+            CONCAT('Avaliou a música ', m.titulo, ' - ', m.artista) as descricao,
+            a.data_criacao as data
+         FROM avaliacoes a
+         JOIN usuarios u ON a.usuario_id = u.id
+         JOIN musicas m ON a.musica_id = m.id)
+         
+        ORDER BY data DESC
+        LIMIT 10
+    ";
 
-// Contar avaliações (que também são os comentários)
-$stmt_reviews_count = $pdo->query("SELECT COUNT(*) as totalReviews FROM avaliacoes");
-$stats['totalReviews'] = $stmt_reviews_count->fetchColumn();
-$stats['totalComments'] = $stats['totalReviews']; // Assumindo que uma avaliação = um comentário
-// --- FIM DA MUDANÇA ---
+    $stmt_activities = $pdo->query($sql_activities);
+    $resposta['activities'] = $stmt_activities->fetchAll();
 
-$resposta['stats'] = $stats;
+    echo json_encode($resposta);
 
-
-// 2. Buscar Utilizadores Recentes (limitado a 20)
-$stmt_users = $pdo->query("SELECT id, nome, email, ativo FROM usuarios ORDER BY id DESC LIMIT 20");
-$resposta['users'] = $stmt_users->fetchAll();
-
-// Converte 'ativo' de 0/1 para true/false (que o Vue espera)
-foreach ($resposta['users'] as &$user) {
-    $user['ativo'] = (bool)$user['ativo'];
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Erro ao carregar dashboard.', 'error' => $e->getMessage()]);
 }
-
-echo json_encode($resposta);
 ?>
