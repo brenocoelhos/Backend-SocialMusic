@@ -71,8 +71,7 @@ curl_close($ch);
 $tokenData = json_decode($response, true);
 
 if (!isset($tokenData['access_token'])) {
-    $error = $tokenData['error_description'] ?? 'Erro ao obter token';
-    header('Location: ' . $frontendUrl . '?error=' . urlencode($error));
+    header('Location: ' . $frontendUrl . '?error=' . urlencode('Erro ao obter token do Spotify'));
     exit;
 }
 
@@ -98,25 +97,15 @@ error_log('Has email: ' . (isset($userData['email']) ? 'YES - ' . $userData['ema
 error_log('================================');
 
 if (!$userData || !isset($userData['email'])) {
-    // Tentar alternativas para o email
     $email = null;
-    
-    if (isset($userData['email'])) {
-        $email = $userData['email'];
-    } elseif (isset($userData['id'])) {
-        // Usar o ID do Spotify + domínio fake como fallback
-        $email = $userData['id'] . '@spotify.local';
-        error_log('Email não disponível, usando ID como fallback: ' . $email);
+    if (isset($userData['id'])) {
+        $email = $userData['id'] . '@spotify.local'; // Fallback
     }
     
     if (!$email) {
-        $errorMessage = 'Dados incompletos do Spotify. Debug: ' . json_encode($userData);
-        error_log($errorMessage);
         header('Location: ' . $frontendUrl . '?error=' . urlencode('Email não disponível na conta Spotify'));
         exit;
     }
-    
-    // Usar o email alternativo
     $userData['email'] = $email;
 }
 
@@ -124,7 +113,12 @@ $email = $userData['email'];
 $spotifyId = $userData['id'];
 
 try {
-    // Verificar se o usuário já existe (PRIORIDADE: spotify_id, depois email)
+// Preparar dados dos tokens
+    $accessToken = $tokenData['access_token'];
+    $refreshToken = $tokenData['refresh_token'] ?? null;
+    $expiresIn = $tokenData['expires_in'] ?? 3600;
+    $expiresAt = date('Y-m-d H:i:s', time() + $expiresIn);
+// Verificar existência do usuário
     $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE spotify_id = ? OR email = ?");
     $stmt->execute([$spotifyId, $email]);
     $usuarioExistente = $stmt->fetch();
@@ -132,14 +126,21 @@ try {
     if ($mode === 'login') {
         // MODO LOGIN
         if ($usuarioExistente) {
-            // Usuário existe - fazer login automático
-            
-            // Atualizar spotify_conectado se necessário
-            if (!$usuarioExistente['spotify_conectado']) {
-                $updateStmt = $pdo->prepare("UPDATE usuarios SET spotify_conectado = 1, spotify_id = ? WHERE id = ?");
-                $updateStmt->execute([$spotifyId, $usuarioExistente['id']]);
-            }
+            $sqlLogin = "UPDATE usuarios SET 
+                            spotify_conectado = 1, 
+                            spotify_id = ?, 
+                            spotify_access_token = ?, 
+                            spotify_token_expires = ? 
+                            " . ($refreshToken ? ", spotify_refresh_token = ?" : "") . " 
+                        WHERE id = ?";
 
+            $paramsLogin = [$spotifyId, $accessToken, $expiresAt];
+            if ($refreshToken) $paramsLogin[] = $refreshToken;
+            $paramsLogin[] = $usuarioExistente['id'];
+
+            $updateStmt = $pdo->prepare($sqlLogin);
+            $updateStmt->execute($paramsLogin);
+            
             // Criar sessão igual ao login normal
             session_regenerate_id(true);
             
@@ -169,20 +170,20 @@ try {
         if ($usuarioExistente) {
             // Usuário já existe - redirecionar para login
             header('Location: ' . $frontendUrl . '?error=' . urlencode('Esta conta já existe. Faça login.'));
-            
         } else {
             // Usuário não existe - prosseguir com cadastro
             $queryParams = http_build_query([
                 'email' => $userData['email'],
-                'nome' => $userData['display_name'] ?? 'Usuário Spotify',
+                'nome' => $userData['display_name'],
                 'spotify_id' => $userData['id'],
                 'imagem' => isset($userData['images'][0]['url']) ? $userData['images'][0]['url'] : '',
+                'access_token' => $accessToken,   
+                'refresh_token' => $refreshToken, 
                 'success' => '1',
-                'action' => 'register',
-                'email_fallback' => strpos($userData['email'], '@spotify.local') !== false ? '1' : '0'
+                'action' => 'register'
             ]);
 
-            header('Location: ' . $frontendUrl . '?' . $queryParams);
+            header('Location: ' . $frontendUrl . '?' . $queryParams);        
         }
     }
     

@@ -335,4 +335,59 @@ public function getTopMusicas($limit = 10) {
         }
     }
 
+
+/**
+     * Busca as últimas músicas escutadas pelo usuário
+     */
+    public function getUserRecentlyPlayed($limit = 10) {
+        if (!$this->isUserTokenValid()) {
+            throw new Exception("Token de usuário inválido ou expirado.");
+        }
+
+        $url = "https://api.spotify.com/v1/me/player/recently-played?limit=" . $limit;
+        
+        // Usa o makeRequest passando true para usar o token do usuário
+        $data = $this->makeRequest($url, true); 
+        
+        // Formatar retorno
+        $tracks = [];
+        if (isset($data->items)) {
+            foreach ($data->items as $item) {
+                $track = $item->track;
+                $tracks[] = [
+                    'played_at' => $item->played_at,
+                    'id' => $track->id,
+                    'titulo' => $track->name,
+                    'artista' => $track->artists[0]->name,
+                    'capa' => $track->album->images[0]->url ?? '',
+                    'previewUrl' => $track->preview_url,
+                    'spotify_url' => $track->external_urls->spotify
+                ];
+            }
+        }
+        return $tracks;
+    }
+
+    /**
+     * Renova o token de acesso do usuário usando o refresh token
+     */
+    public function refreshUserAccessToken($refreshToken) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken
+        ]));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Basic ' . base64_encode($this->clientId . ':' . $this->clientSecret),
+            'Content-Type: application/x-www-form-urlencoded'
+        ]);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+        
+        return json_decode($response, true);
+    }
 }

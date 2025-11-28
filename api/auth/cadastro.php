@@ -33,6 +33,16 @@ $spotify_conectado = $isSpotifySignup ? 1 : 0;
 // Hash da senha (se fornecida)
 $senha_hash = !empty($dados['senha']) ? password_hash($dados['senha'], PASSWORD_DEFAULT) : null;
 
+// Tokens do Spotify
+$spotify_access_token = $dados['accessToken'] ?? null;
+$spotify_refresh_token = $dados['refreshToken'] ?? null;
+$spotify_token_expires = null;
+
+if ($spotify_access_token) {
+    // Define a expiração para 1 hora a partir de agora
+    $spotify_token_expires = date('Y-m-d H:i:s', time() + 3600);
+}
+
 // Define perfil automaticamente baseado no domínio do email
 // Emails com @socialmusic.com são automaticamente admin
 if (str_ends_with($email, '@socialmusic.com')) {
@@ -73,23 +83,37 @@ if ($stmt->fetch()) {
 }
 
 // 3. Insere o novo usuário
-if ($isSpotifySignup) {
-    $stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo, spotify_id, spotify_conectado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $params = [$nome, $username, $email, $senha_hash, $perfil, $ativo, $spotify_id, $spotify_conectado];
-} else {
-    $stmt = $pdo->prepare("INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo, spotify_conectado) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $params = [$nome, $username, $email, $senha_hash, $perfil, $ativo, $spotify_conectado];
-}
-
 try {
+    if ($isSpotifySignup) {
+        // Query específica para Spotify com Tokens
+        $sql = "INSERT INTO usuarios (
+                    nome, username, email, senha_hash, perfil, ativo, 
+                    spotify_id, spotify_conectado, 
+                    spotify_access_token, spotify_refresh_token, spotify_token_expires
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $pdo->prepare($sql);
+        $params = [
+            $nome, $username, $email, $senha_hash, $perfil, $ativo, 
+            $spotify_id, $spotify_conectado,
+            $spotify_access_token, $spotify_refresh_token, $spotify_token_expires
+        ];
+    } else {
+        // Cadastro normal
+        $sql = "INSERT INTO usuarios (nome, username, email, senha_hash, perfil, ativo, spotify_conectado) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($sql);
+        $params = [$nome, $username, $email, $senha_hash, $perfil, $ativo, $spotify_conectado];
+    }
+
     $stmt->execute($params);
     
-    http_response_code(201); // Created
+    http_response_code(201); 
     echo json_encode(['sucesso' => true, 'mensagem' => 'Usuário cadastrado com sucesso!']);
 
 } catch (PDOException $e) {
     // Se algo der errado no INSERT (ex: coluna faltando)
     http_response_code(500);
+    error_log("Erro cadastro.php: " . $e->getMessage());
     echo json_encode([
         'sucesso' => false, 
         'mensagem' => 'Erro interno do servidor ao cadastrar usuário.',

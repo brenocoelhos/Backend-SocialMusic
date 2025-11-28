@@ -3,6 +3,8 @@
 
 require_once __DIR__ . '/../core/header.php';
 
+$scopes = 'user-read-private user-read-email user-read-recently-played';
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -37,7 +39,6 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'authorize') {
     // Gerar URL de autorização do Spotify para usuários
     
-    $scopes = 'user-read-private user-read-email';
     $state = bin2hex(random_bytes(16)); // Para segurança
     $mode = $_GET['mode'] ?? 'register'; // 'login' ou 'register'
     
