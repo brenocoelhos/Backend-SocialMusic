@@ -3,21 +3,40 @@ require_once __DIR__ . '/../core/header.php';
 require_once __DIR__ . '/../core/conexao.php';
 require_once __DIR__ . '/../../classes/SpotifyAPI.php';
 
-// Antigo código do pedro não deixava usuários não logados acessarem o perfil de outros usuários
 // AJUSTADO 
 
 $utilizador_logado_id = $_SESSION['usuario_id'] ?? null;
-$perfil_id_param = $_GET['id'] ?? null;
 
-// Determina qual perfil carregar
-$perfil_id = $perfil_id_param ? (int)$perfil_id_param : $utilizador_logado_id;
+$username_param = $_GET['username'] ?? null;
+$id_param = $_GET['id'] ?? null; 
+$perfil_id = null;
+
+if ($username_param) {
+    // Se veio um nome (ex: joao), buscamos o ID dele no banco
+    $stmt_busca_id = $pdo->prepare("SELECT id FROM usuarios WHERE username = :username");
+    $stmt_busca_id->execute([':username' => $username_param]);
+    $perfil_id = $stmt_busca_id->fetchColumn();
+
+    if (!$perfil_id) {
+        http_response_code(404);
+        echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não encontrado.']);
+        exit;
+    }
+} elseif ($id_param) {
+    // Se veio um ID direto (ex: 14)
+    $perfil_id = (int)$id_param;
+} else {
+    // Se não veio nada na URL, assume que é o próprio usuário logado
+    $perfil_id = $utilizador_logado_id;
+}
+// --- FIM DA MUDANÇA ---
+
 
 // BLOQUEAR APENAS SE:
-// O usuário NÃO está logado E NÃO forneceu um ID de perfil na URL
-// (ou seja, tentou acessar a própria página de perfil sem estar logado)
+// O usuário NÃO está logado E a lógica acima não encontrou um perfil válido
 if (!$perfil_id) { 
     http_response_code(401);
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Acesso negado. Faça login ou especifique um ID de perfil.']);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Acesso negado. Faça login ou busque um perfil válido.']);
     exit;
 }
 
@@ -40,8 +59,6 @@ try {
         exit;
     }
     
-    // Tirei a lógiga do avatar, pois irei tratar no front - Isa
-
     // 2. Verificar o estado "Seguir"
     $is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);    
     $is_following = false;
@@ -92,7 +109,7 @@ try {
     $avaliacoes_raw = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
     
     // Formatamos os dados
-    $musica_formatada = [];
+    $avaliacoes_formatadas = []; // INICIALIZADO PARA EVITAR ERRO SE O ARRAY ESTIVER VAZIO
 
     foreach ($avaliacoes_raw as $row) {
         // Dados básicos            
