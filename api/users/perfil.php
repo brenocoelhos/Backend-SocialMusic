@@ -3,33 +3,35 @@ require_once __DIR__ . '/../core/header.php';
 require_once __DIR__ . '/../core/conexao.php';
 require_once __DIR__ . '/../../classes/SpotifyAPI.php';
 
-// AJUSTADO 
-
 $utilizador_logado_id = $_SESSION['usuario_id'] ?? null;
 
-$username_param = $_GET['username'] ?? null;
-$id_param = $_GET['id'] ?? null; 
+
+// Pega o valor, não importa se veio como 'username' ou 'id'
+$parametro = $_GET['username'] ?? $_GET['id'] ?? null;
 $perfil_id = null;
 
-if ($username_param) {
-    // Se veio um nome (ex: joao), buscamos o ID dele no banco
-    $stmt_busca_id = $pdo->prepare("SELECT id FROM usuarios WHERE username = :username");
-    $stmt_busca_id->execute([':username' => $username_param]);
-    $perfil_id = $stmt_busca_id->fetchColumn();
+if ($parametro) {
+    // Verifica se é numérico (ex: "14" ou 14) -> Trata como ID
+    if (is_numeric($parametro)) {
+        $perfil_id = (int)$parametro;
+    } 
+    // Se não for número, assume que é Username (ex: "joao")
+    else {
+        $stmt_busca_id = $pdo->prepare("SELECT id FROM usuarios WHERE username = :username");
+        $stmt_busca_id->execute([':username' => $parametro]);
+        $perfil_id = $stmt_busca_id->fetchColumn();
 
-    if (!$perfil_id) {
-        http_response_code(404);
-        echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não encontrado.']);
-        exit;
+        if (!$perfil_id) {
+            http_response_code(404);
+            echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não encontrado.']);
+            exit;
+        }
     }
-} elseif ($id_param) {
-    // Se veio um ID direto (ex: 14)
-    $perfil_id = (int)$id_param;
 } else {
     // Se não veio nada na URL, assume que é o próprio usuário logado
     $perfil_id = $utilizador_logado_id;
 }
-// --- FIM DA MUDANÇA ---
+
 
 
 // BLOQUEAR APENAS SE:
