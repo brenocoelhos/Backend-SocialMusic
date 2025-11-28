@@ -44,13 +44,18 @@ try {
             'httponly' => true,
             'samesite' => 'Lax'
         ]);
+
+        $stmt = $pdo->prepare("SELECT spotify_conectado FROM usuarios WHERE id = ?");
+        $stmt->execute([$result['user']['id']]);
+        $spotifyStatus = $stmt->fetchColumn();
         
         echo json_encode([
             'sucesso' => true,
             'mensagem' => 'Login realizado com sucesso',
             'token' => $result['token'],
-            'usuario' => $result['user']
+            'usuario' => array_merge($result['user'], ['spotify_conectado' => (int)$spotifyStatus])
         ]);
+
     } else {
         http_response_code(401);
         echo json_encode([

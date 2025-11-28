@@ -39,7 +39,8 @@ if ($usuario && password_verify($senha, $usuario['senha_hash'])) {
             'email' => $usuario['email'],
             'username' => $usuario['username'],
             'perfil' => $usuario['perfil'],
-            'foto' => $usuario['foto_perfil'] ?? null
+            'foto' => $usuario['foto_perfil'] ?? null,
+            'spotify_conectado' => (int)$usuario['spotify_conectado']
         ]
     ]);
 } else {

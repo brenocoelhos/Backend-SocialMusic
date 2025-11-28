@@ -155,7 +155,8 @@ try {
                 'nome' => $usuarioExistente['nome'],
                 'email' => $usuarioExistente['email'],
                 'perfil' => $usuarioExistente['perfil'],
-                'foto' => $usuarioExistente['foto_perfil'] ?? '' // Envia a foto também
+                'foto' => $usuarioExistente['foto_perfil'] ?? '', // Envia a foto também
+                'spotify_conectado' => '1'
             ]);
 
             header('Location: ' . $frontendUrl . '?' . $queryParams);
