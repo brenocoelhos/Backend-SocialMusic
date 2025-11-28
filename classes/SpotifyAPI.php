@@ -361,7 +361,13 @@ public function getTopMusicas($limit = 10) {
                     'artista' => $track->artists[0]->name,
                     'capa' => $track->album->images[0]->url ?? '',
                     'previewUrl' => $track->preview_url,
-                    'spotify_url' => $track->external_urls->spotify
+                    'spotify_url' => $track->external_urls->spotify,
+                    'duration_ms' => $track->duration_ms,
+                    'release_date' => $track->album->release_date,
+                    'popularity' => $track->popularity,
+                    'explicit' => $track->explicit,
+                    'album_name' => $track->album->name,
+                    'album_type' => $track->album->album_type
                 ];
             }
         }

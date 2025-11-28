@@ -60,11 +60,11 @@ try {
     }
 
     // 3. Buscar as músicas
-    $musicas = $spotifyApi->getUserRecentlyPlayed($limit);
+    $data = $spotifyApi->getUserRecentlyPlayed($limit);
 
     echo json_encode([
         'sucesso' => true,
-        'musicas' => $musicas
+        'musicas' => $data
     ]);
 
 } catch (Exception $e) {
