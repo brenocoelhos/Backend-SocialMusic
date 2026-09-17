@@ -43,13 +43,8 @@ if ($spotify_access_token) {
     $spotify_token_expires = date('Y-m-d H:i:s', time() + 3600);
 }
 
-// Define perfil automaticamente baseado no domínio do email
-// Emails com @socialmusic.com são automaticamente admin
-if (str_ends_with($email, '@socialmusic.com')) {
-    $perfil = 'admin';
-} else {
-    $perfil = 'user';
-}
+// Todos os novos usuários são cadastrados como usuários comuns
+$perfil = 'user';
 
 $ativo = 1;       // Padrão (já que adicionamos essa coluna para o Admin.vue)
 
@@ -117,7 +112,7 @@ try {
     echo json_encode([
         'sucesso' => false, 
         'mensagem' => 'Erro interno do servidor ao cadastrar usuário.',
-        'error_debug' => $e->getMessage() // Mensagem para depuração
+        'error_debug' => $e->getMessage()
     ]);
 }
 ?>
