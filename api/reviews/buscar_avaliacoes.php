@@ -65,7 +65,13 @@ $sql_avaliacoes = "
             u.foto_perfil as usuario_avatar,
             CASE WHEN s.seguidor_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_following,
             (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
-            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id_exists)) AS usuario_curtiu
+            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id_exists)) AS usuario_curtiu,
+            (EXISTS(
+                SELECT 1
+                FROM denuncias_avaliacoes da
+                WHERE da.avaliacao_id = a.id
+                  AND da.usuario_id = :usuario_logado_id_report
+            )) AS usuario_denunciou
         FROM avaliacoes a
         JOIN usuarios u ON a.usuario_id = u.id
         LEFT JOIN seguidores s ON s.seguido_id = u.id AND s.seguidor_id = :usuario_logado_id_left 
@@ -81,9 +87,11 @@ $sql_avaliacoes = "
     if ($usuario_logado_id === null) {
         $stmt_avaliacoes->bindValue(':usuario_logado_id_left', null, PDO::PARAM_NULL);
         $stmt_avaliacoes->bindValue(':usuario_logado_id_exists', null, PDO::PARAM_NULL);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_report', null, PDO::PARAM_NULL);
     } else {
         $stmt_avaliacoes->bindValue(':usuario_logado_id_left', $usuario_logado_id, PDO::PARAM_INT);
         $stmt_avaliacoes->bindValue(':usuario_logado_id_exists', $usuario_logado_id, PDO::PARAM_INT);
+        $stmt_avaliacoes->bindValue(':usuario_logado_id_report', $usuario_logado_id, PDO::PARAM_INT);
     }
 
     $stmt_avaliacoes->bindValue(':musica_id', $musica_id_local, PDO::PARAM_INT);
@@ -107,6 +115,7 @@ $sql_avaliacoes = "
     foreach ($avaliacoes as $key => $review){
         $avaliacoes[$key]['is_following'] = (bool)$review['is_following'];
         $avaliacoes[$key]['usuario_curtiu'] = (bool)$review['usuario_curtiu'];
+        $avaliacoes[$key]['usuario_denunciou'] = (bool)$review['usuario_denunciou'];
     }
 
     // Retornar os dados
