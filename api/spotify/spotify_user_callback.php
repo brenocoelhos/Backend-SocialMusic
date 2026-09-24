@@ -50,6 +50,13 @@ if ($state !== $savedState) {
 $mode = file_exists(__DIR__ . '/../../temp/spotify_user_mode.txt') ? 
         file_get_contents(__DIR__ . '/../../temp/spotify_user_mode.txt') : 'register';
 
+$returnTo = file_exists(__DIR__ . '/../../temp/spotify_user_return_to.txt')
+    ? trim((string)file_get_contents(__DIR__ . '/../../temp/spotify_user_return_to.txt'))
+    : '/';
+if ($returnTo === '' || $returnTo[0] !== '/' || str_starts_with($returnTo, '//') || preg_match('/[\r\n]/', $returnTo)) {
+    $returnTo = '/';
+}
+
 // Trocar code por token
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, 'https://accounts.spotify.com/api/token');
@@ -172,10 +179,14 @@ try {
                 'email' => $usuarioExistente['email'],
                 'perfil' => $usuarioExistente['perfil'],
                 'foto' => $usuarioExistente['foto_perfil'] ?? '',
-                'spotify_conectado' => '1'
+                'spotify_conectado' => '1',
+                'return_to' => $returnTo
             ]);
 
-            header('Location: ' . $frontendUrl . '?' . $queryParams . '#auth_token=' . rawurlencode($appToken));
+            // Sempre volta pela raiz do frontend. O App.vue salva o novo token
+            // primeiro e só então navega para return_to, evitando corrida de
+            // autenticação em navegadores que bloqueiam o cookie cross-site.
+            header('Location: ' . rtrim($frontendUrl, '/') . '/?' . $queryParams . '#auth_token=' . rawurlencode($appToken));
             
         } else {
             // Usuário não existe - erro no login

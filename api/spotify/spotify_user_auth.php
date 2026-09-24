@@ -3,7 +3,7 @@
 
 require_once __DIR__ . '/../core/header.php';
 
-$scopes = 'user-read-private user-read-email user-read-recently-played';
+$scopes = 'user-read-private user-read-email user-read-recently-played playlist-modify-private';
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -41,6 +41,10 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'authoriz
     
     $state = bin2hex(random_bytes(16)); // Para segurança
     $mode = $_GET['mode'] ?? 'register'; // 'login' ou 'register'
+    $returnTo = $_GET['return_to'] ?? '/';
+    if (!is_string($returnTo) || $returnTo === '' || $returnTo[0] !== '/' || str_starts_with($returnTo, '//') || preg_match('/[\r\n]/', $returnTo)) {
+        $returnTo = '/';
+    }
     
     // Criar diretório temp se não existir
     if (!is_dir(__DIR__ . '/../../temp')) {
@@ -50,6 +54,7 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'authoriz
     // Salvar o state e mode em arquivo temporário
     file_put_contents(__DIR__ . '/../../temp/spotify_user_state.txt', $state);
     file_put_contents(__DIR__ . '/../../temp/spotify_user_mode.txt', $mode);
+    file_put_contents(__DIR__ . '/../../temp/spotify_user_return_to.txt', $returnTo);
 
     $authUrl = 'https://accounts.spotify.com/authorize?' . http_build_query([
         'response_type' => 'code',
