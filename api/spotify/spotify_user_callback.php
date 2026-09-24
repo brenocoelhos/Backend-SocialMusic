@@ -2,6 +2,7 @@
 // api/spotify_user_callback.php - Callback OAuth para usuários finais
 require_once __DIR__ . '/../core/header.php';
 require_once __DIR__ . '/../core/conexao.php';
+require_once __DIR__ . '/../core/auth_token.php';
 
 // Carregar .env
 $envFile = __DIR__ . '/../../.env';
@@ -141,25 +142,40 @@ try {
             $updateStmt = $pdo->prepare($sqlLogin);
             $updateStmt->execute($paramsLogin);
             
-            // Criar sessão igual ao login normal
+            // Criar sessão igual ao login normal.
             session_regenerate_id(true);
-            
-            $_SESSION['usuario_id'] = $usuarioExistente['id'];
-            $_SESSION['usuario_email'] = $usuarioExistente['email'];
-            $_SESSION['usuario_perfil'] = $usuarioExistente['perfil'];
 
-            // Redirecionar com dados de login (SEM success=1 para não confundir com cadastro)
+            $_SESSION['usuario_id'] = (int) $usuarioExistente['id'];
+            $_SESSION['usuario_email'] = $usuarioExistente['email'];
+            $_SESSION['perfil'] = $usuarioExistente['perfil'];
+
+            // Gera também o token da própria aplicação. Ele será enviado no
+            // fragmento (#) da URL, que não é transmitido ao servidor Vercel.
+            // O frontend salva esse token e passa a usá-lo como Bearer quando
+            // o cookie cross-site estiver bloqueado.
+            $appToken = createAuthToken($pdo, (int) $usuarioExistente['id'], 3600);
+
+            setcookie('auth_token', $appToken, [
+                'expires' => time() + 3600,
+                'path' => '/',
+                'domain' => '',
+                'secure' => true,
+                'httponly' => true,
+                'samesite' => 'None'
+            ]);
+
+            // Redirecionar com dados de login (SEM success=1 para não confundir com cadastro).
             $queryParams = http_build_query([
                 'spotify_login' => 'success',
                 'id' => $usuarioExistente['id'],
                 'nome' => $usuarioExistente['nome'],
                 'email' => $usuarioExistente['email'],
                 'perfil' => $usuarioExistente['perfil'],
-                'foto' => $usuarioExistente['foto_perfil'] ?? '', // Envia a foto também
+                'foto' => $usuarioExistente['foto_perfil'] ?? '',
                 'spotify_conectado' => '1'
             ]);
 
-            header('Location: ' . $frontendUrl . '?' . $queryParams);
+            header('Location: ' . $frontendUrl . '?' . $queryParams . '#auth_token=' . rawurlencode($appToken));
             
         } else {
             // Usuário não existe - erro no login

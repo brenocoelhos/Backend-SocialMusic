@@ -1,28 +1,36 @@
 <?php
 /**
- * Header para todas as requisições da API
- * CORS é gerenciado em config/cors.php
+ * Header para todas as requisições da API.
+ *
+ * Mantém a sessão PHP existente e adiciona Bearer Token como fallback para
+ * navegadores que bloqueiam o cookie cross-site entre Vercel e Render.
  */
 
-// Incluir configuração de CORS
 require_once __DIR__ . '/../../config/cors.php';
 
-// Define o tempo de vida da sessão (ex: 8 horas)
-ini_set('session.gc_maxlifetime', 8 * 60 * 60); // 8 horas * 60 min * 60 seg
+// Mantém o mesmo tempo de vida da sessão já usado pelo projeto.
+ini_set('session.gc_maxlifetime', 8 * 60 * 60);
 session_set_cookie_params([
     'lifetime' => 28800,
     'path' => '/',
     'domain' => '',
-    'secure' => true,      // Somente HTTPS
-    'httponly' => true,    // Não acessível via JavaScript
-    'samesite' => 'None'   // Permite cross-origin
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'None'
 ]);
 
-// Inicia a sessão para todas as requisições
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Define que a saída será sempre JSON
-header("Content-Type: application/json");
+require_once __DIR__ . '/auth_token.php';
+
+// Só abre conexão aqui quando realmente existe um Bearer e a sessão não veio
+// pelo cookie. Os endpoints que já incluem conexao.php continuam iguais.
+if (!isset($_SESSION['usuario_id']) && getBearerToken()) {
+    require_once __DIR__ . '/conexao.php';
+    hydrateSessionFromBearer($pdo);
+}
+
+header('Content-Type: application/json; charset=utf-8');
 ?>

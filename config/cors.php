@@ -1,10 +1,8 @@
 <?php
 /**
- * Configuração CORS centralizada
- * Permite requisições do frontend em produção e desenvolvimento
+ * Configuração CORS centralizada.
  */
 
-// Lista de origens permitidas
 $allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
@@ -12,24 +10,25 @@ $allowedOrigins = [
     'https://socialmusic.vercel.app'
 ];
 
-// Pegar origem da requisição
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// Verificar se a origem está na lista permitida
-if (in_array($origin, $allowedOrigins)) {
+if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: $origin");
-    header("Access-Control-Allow-Credentials: true");
+    header('Access-Control-Allow-Credentials: true');
+    header('Vary: Origin');
 } else {
-    // Para outras origens, permitir mas sem credentials
-    header("Access-Control-Allow-Origin: *");
+    // Mantém APIs públicas acessíveis, mas sem credenciais para origens externas.
+    header('Access-Control-Allow-Origin: *');
 }
 
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+// Evita repetir o preflight a cada chamada autenticada com Authorization.
+header('Access-Control-Max-Age: 86400');
 header('Content-Type: application/json; charset=utf-8');
 
-// Responder a requisições OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204);
     exit;
 }
+?>
