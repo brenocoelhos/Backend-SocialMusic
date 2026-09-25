@@ -1,184 +1,112 @@
 <?php
 require_once __DIR__ . '/../core/header.php';
 require_once __DIR__ . '/../core/conexao.php';
-require_once __DIR__ . '/../../classes/SpotifyAPI.php';
 
-$utilizador_logado_id = $_SESSION['usuario_id'] ?? null;
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
-
-// Pega o valor, não importa se veio como 'username' ou 'id'
+$inicio = microtime(true);
+$usuarioLogadoId = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : null;
 $parametro = $_GET['username'] ?? $_GET['id'] ?? null;
-$perfil_id = null;
 
-if ($parametro) {
-    // Verifica se é numérico (ex: "14" ou 14) -> Trata como ID
-    if (is_numeric($parametro)) {
-        $perfil_id = (int)$parametro;
-    } 
-    // Se não for número, assume que é Username (ex: "joao")
-    else {
-        $stmt_busca_id = $pdo->prepare("SELECT id FROM usuarios WHERE username = :username");
-        $stmt_busca_id->execute([':username' => $parametro]);
-        $perfil_id = $stmt_busca_id->fetchColumn();
-
-        if (!$perfil_id) {
-            http_response_code(404);
-            echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não encontrado.']);
-            exit;
-        }
+if ($parametro === null || $parametro === '') {
+    if (!$usuarioLogadoId) {
+        http_response_code(401);
+        echo json_encode([
+            'sucesso' => false,
+            'mensagem' => 'Acesso negado. Faça login ou informe um perfil válido.'
+        ]);
+        exit;
     }
-} else {
-    // Se não veio nada na URL, assume que é o próprio usuário logado
-    $perfil_id = $utilizador_logado_id;
-}
-
-
-
-// BLOQUEAR APENAS SE:
-// O usuário NÃO está logado E a lógica acima não encontrou um perfil válido
-if (!$perfil_id) { 
-    http_response_code(401);
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Acesso negado. Faça login ou busque um perfil válido.']);
-    exit;
+    $parametro = $usuarioLogadoId;
 }
 
 try {
-    $clientId = getenv('SPOTIFY_CLIENT_ID');
-    $clientSecret = getenv('SPOTIFY_CLIENT_SECRET');
-    if (!$clientId || !$clientSecret) {
-        throw new Exception('Credenciais do Spotify não configuradas.');
+    // Uma única consulta retorna os dados principais, contagens e estado de follow.
+    // Não há nenhuma chamada ao Spotify no caminho crítico do perfil.
+    if (is_numeric($parametro)) {
+        $where = 'u.id = :perfil';
+        $perfilParam = (int)$parametro;
+    } else {
+        $where = 'u.username = :perfil';
+        $perfilParam = (string)$parametro;
     }
-    $spotifyApi = new SpotifyAPI($clientId, $clientSecret);
 
-    // 1. Buscar os dados do perfil (lendo 'foto_perfil' e 'generos')
-    $stmt_perfil = $pdo->prepare("SELECT id, nome, email, username, foto_perfil, generos FROM usuarios WHERE id = :perfil_id");
-    $stmt_perfil->execute([':perfil_id' => $perfil_id]);
-    $perfil = $stmt_perfil->fetch(PDO::FETCH_ASSOC);
+    $sql = "
+        SELECT
+            u.id,
+            u.nome,
+            u.username,
+            u.foto_perfil,
+            u.generos,
+            u.spotify_conectado,
+            (SELECT COUNT(*) FROM seguidores s1 WHERE s1.seguidor_id = u.id) AS following_count,
+            (SELECT COUNT(*) FROM seguidores s2 WHERE s2.seguido_id = u.id) AS followers_count,
+            (SELECT COUNT(*) FROM avaliacoes a1 WHERE a1.usuario_id = u.id) AS avaliacoes_count,
+            CASE
+                WHEN :logado_id_follow IS NULL THEN 0
+                WHEN :logado_id_self = u.id THEN 0
+                ELSE EXISTS(
+                    SELECT 1
+                    FROM seguidores sf
+                    WHERE sf.seguidor_id = :logado_id_exists
+                      AND sf.seguido_id = u.id
+                )
+            END AS is_following
+        FROM usuarios u
+        WHERE {$where}
+        LIMIT 1
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->bindValue(':perfil', $perfilParam, is_int($perfilParam) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    if ($usuarioLogadoId === null) {
+        $stmt->bindValue(':logado_id_follow', null, PDO::PARAM_NULL);
+        $stmt->bindValue(':logado_id_self', null, PDO::PARAM_NULL);
+        $stmt->bindValue(':logado_id_exists', null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue(':logado_id_follow', $usuarioLogadoId, PDO::PARAM_INT);
+        $stmt->bindValue(':logado_id_self', $usuarioLogadoId, PDO::PARAM_INT);
+        $stmt->bindValue(':logado_id_exists', $usuarioLogadoId, PDO::PARAM_INT);
+    }
+    $stmt->execute();
+    $perfil = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$perfil) {
         http_response_code(404);
         echo json_encode(['sucesso' => false, 'mensagem' => 'Perfil não encontrado.']);
         exit;
     }
-    
-    // 2. Verificar o estado "Seguir"
-    $is_self = ($utilizador_logado_id == $perfil_id && $utilizador_logado_id !== null);    
-    $is_following = false;
-    if (!$is_self && $utilizador_logado_id) {
-        $stmt_follow = $pdo->prepare("SELECT 1 FROM seguidores WHERE seguidor_id = :logado_id AND seguido_id = :perfil_id");
-        $stmt_follow->execute([
-            ':logado_id' => $utilizador_logado_id, 
-            ':perfil_id' => $perfil_id
-        ]); 
-        $is_following = (bool) $stmt_follow->fetchColumn();
-    }
 
-    // 3. Contar Seguidores e Seguindo
-    $stmt_following = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguidor_id = :perfil_id");
-    $stmt_following->execute([':perfil_id' => $perfil_id]);
-    $perfil['following_count'] = $stmt_following->fetchColumn();
+    $perfilId = (int)$perfil['id'];
+    $isSelf = $usuarioLogadoId !== null && $usuarioLogadoId === $perfilId;
+    $isFollowing = !$isSelf && (bool)$perfil['is_following'];
 
-    $stmt_followers = $pdo->prepare("SELECT COUNT(*) FROM seguidores WHERE seguido_id = :perfil_id");
-    $stmt_followers->execute([':perfil_id' => $perfil_id]);
-    $perfil['followers_count'] = $stmt_followers->fetchColumn();
+    unset($perfil['is_following']);
+    $perfil['id'] = $perfilId;
+    $perfil['spotify_conectado'] = (int)$perfil['spotify_conectado'];
+    $perfil['following_count'] = (int)$perfil['following_count'];
+    $perfil['followers_count'] = (int)$perfil['followers_count'];
+    $perfil['avaliacoes_count'] = (int)$perfil['avaliacoes_count'];
 
-    
-    $sql_avaliacoes = "
-        SELECT 
-            a.id, a.nota, a.titulo, a.comentario,
-            m.titulo as musica_titulo, 
-            m.artista as musica_artista, 
-            m.capa_url as musica_capa,
-            m.spotify_id as musica_spotify_id,
-            (SELECT COUNT(*) FROM curtidas_avaliacoes ca WHERE ca.avaliacao_id = a.id) AS total_curtidas,
-            (EXISTS(SELECT 1 FROM curtidas_avaliacoes cl WHERE cl.avaliacao_id = a.id AND cl.usuario_id = :usuario_logado_id)) AS usuario_curtiu
-        FROM avaliacoes a
-        LEFT JOIN musicas m ON a.musica_id = m.id
-        WHERE a.usuario_id = :perfil_id
-        ORDER BY a.data_criacao DESC
-    ";
+    $duracaoMs = round((microtime(true) - $inicio) * 1000, 1);
+    header('Server-Timing: perfil;dur=' . $duracaoMs);
 
-    $stmt_avaliacoes = $pdo->prepare($sql_avaliacoes);
-
-    $stmt_avaliacoes->bindValue(':perfil_id', $perfil_id, PDO::PARAM_INT);
-    if ($utilizador_logado_id === null) {
-        $stmt_avaliacoes->bindValue(':usuario_logado_id', null, PDO::PARAM_NULL);
-    } else {
-        $stmt_avaliacoes->bindValue(':usuario_logado_id', $utilizador_logado_id, PDO::PARAM_INT);
-    }
-
-    $stmt_avaliacoes->execute();
-    $avaliacoes_raw = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Formatamos os dados
-    $avaliacoes_formatadas = []; // INICIALIZADO PARA EVITAR ERRO SE O ARRAY ESTIVER VAZIO
-
-    foreach ($avaliacoes_raw as $row) {
-        // Dados básicos            
-        $musica_formatada = [
-            'id' => $row['musica_spotify_id'],
-            'titulo' => $row['musica_titulo'],
-            'artista' => $row['musica_artista'],
-            'capa' => $row['musica_capa'] ?? 'https://via.placeholder.com/150',
-            // Valores padrão
-            'spotify_url' => null,
-            'duration_ms' => null,
-            'release_date' => null,
-            'popularity' => null,
-            'explicit' => false,
-            'album_name' => null,
-            'album_type' => null
-        ];
-            // Tenta buscar os dados completos no Spotify
-            if (!empty($row['musica_spotify_id'])) {
-                try {
-                    $spotifyTrack = $spotifyApi->getTrackById($row['musica_spotify_id']);
-
-                    if ($spotifyTrack) {
-                        // Conseguiu buscar, soobrescreve o objeto com dados ricos
-                        $musica_formatada = [
-                            'id' => $spotifyTrack->id,
-                            'titulo' => $spotifyTrack->name,
-                            'artista' => $spotifyTrack->artists[0]->name,
-                            'capa' => $spotifyTrack->album->images[0]->url ?? $row['musica_capa'],
-                            'spotify_url' => $spotifyTrack->external_urls->spotify,
-                            'duration_ms' => $spotifyTrack->duration_ms,
-                            'release_date' => $spotifyTrack->album->release_date,
-                            'popularity' => $spotifyTrack->popularity,
-                            'explicit' => $spotifyTrack->explicit,
-                            'album_name' => $spotifyTrack->album->name,
-                            'album_type' => $spotifyTrack->album->album_type
-                        ];
-                    }
-                } catch (Exception $e) {
-                    error_log("Falha em perfil.php ao buscar getTrackById para " . $row['musica_spotify_id'] . ": " . $e->getMessage());
-                    // Se falhar, $musica_formatada fica com apenas os dados básicos
-                } 
-            }
-            // adiciona a avaliação ao array principal
-            $avaliacoes_formatadas[] = [
-                'id' => $row['id'],
-                'musica' => $musica_formatada, 
-                'nota' => (float)$row['nota'],
-                'titulo' => $row['titulo'],
-                'comentario' => $row['comentario'],
-                'likes' => (int)$row['total_curtidas'],
-                'usuario_curtiu' => (bool)$row['usuario_curtiu']
-            ];
-        }
-
-    // 6. Enviar a resposta completa (COM a lista de avaliações)
     echo json_encode([
         'sucesso' => true,
         'perfil' => $perfil,
-        'avaliacoes' => $avaliacoes_formatadas, 
-        'is_self' => $is_self,
-        'is_following' => $is_following
-    ]);
-
-} catch (Exception $e) {
+        'is_self' => $isSelf,
+        'is_following' => $isFollowing,
+        'meta' => [
+            'duracao_ms' => $duracaoMs,
+            'avaliacoes_separadas' => true,
+        ],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+} catch (Throwable $e) {
     http_response_code(500);
-    error_log("Erro em perfil.php: " . $e->getMessage()); 
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Erro de servidor.', 'error' => $e->getMessage()]);
+    error_log('Erro em perfil.php otimizado: ' . $e->getMessage());
+    echo json_encode([
+        'sucesso' => false,
+        'mensagem' => 'Erro de servidor ao carregar o perfil.'
+    ], JSON_UNESCAPED_UNICODE);
 }
-?>
