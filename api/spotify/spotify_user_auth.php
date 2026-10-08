@@ -3,7 +3,7 @@
 
 require_once __DIR__ . '/../core/header.php';
 
-$scopes = 'user-read-private user-read-email user-read-recently-played playlist-modify-private';
+$scopes = 'user-read-private user-read-email user-read-recently-played playlist-read-private playlist-read-collaborative playlist-modify-private';
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
